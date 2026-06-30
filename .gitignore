@@ -1,0 +1,14 @@
+# Build de Maven
+target/
+
+# Build de IntelliJ / salidas locales
+out/
+*.iml
+.idea/
+
+# Compilados sueltos
+*.class
+
+# Variables de entorno locales (credenciales) — NUNCA versionar
+.env
+*.env.local
