@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane id="rootPane" prefHeight="468.0" prefWidth="655.0"
+            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="controllers.AltaClienteController"
+            stylesheets="@/resource/styles.css">
+    <children>
+        <Label layoutX="10.0" layoutY="10.0" text="REGISTRO DE NUEVO CLIENTE" styleClass="label-header" />
+        <Separator layoutX="10.0" layoutY="40.0" prefWidth="635.0" />
+
+        <Label layoutX="10.0" layoutY="60.0" text="DATOS PERSONALES" styleClass="label-section" />
+        <GridPane layoutX="10.0" layoutY="85.0" prefWidth="635.0" hgap="10.0" vgap="10.0">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="20.0" />
+                <ColumnConstraints percentWidth="30.0" />
+                <ColumnConstraints percentWidth="20.0" />
+                <ColumnConstraints percentWidth="30.0" />
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints prefHeight="30.0" />
+                <RowConstraints prefHeight="30.0" />
+            </rowConstraints>
+
+            <Label text="Nombre (*):" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+            <TextField fx:id="txtNombre" promptText="Nombre del cliente" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="text-field" />
+
+            <Label text="Apellido (*):" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+            <TextField fx:id="txtApellido" promptText="Apellido del cliente" GridPane.columnIndex="3" GridPane.rowIndex="0" styleClass="text-field" />
+
+            <Label text="Teléfono:" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+            <TextField fx:id="txtTelefono" promptText="(Ej: 1123456789)" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="text-field" />
+
+            <Label text="Email:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+            <TextField fx:id="txtEmail" promptText="correo@ejemplo.com" GridPane.columnIndex="3" GridPane.rowIndex="1" styleClass="text-field" />
+        </GridPane>
+
+        <Label layoutX="10.0" layoutY="180.0" text="DOCUMENTO Y UBICACIÓN" styleClass="label-section" />
+        <GridPane layoutX="10.0" layoutY="205.0" prefWidth="635.0" hgap="10.0" vgap="10.0">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="20.0" />
+                <ColumnConstraints percentWidth="30.0" />
+                <ColumnConstraints percentWidth="20.0" />
+                <ColumnConstraints percentWidth="30.0" />
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints prefHeight="30.0" />
+                <RowConstraints prefHeight="30.0" />
+                <RowConstraints prefHeight="30.0" />
+            </rowConstraints>
+
+            <Label text="Tipo Doc. (*):" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+            <ComboBox fx:id="cmbTipoDocumento" promptText="Seleccionar" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="combo-box" />
+
+            <Label text="Nº Documento (*):" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+            <TextField fx:id="txtNumeroDocumento" promptText="Número de identificación" GridPane.columnIndex="3" GridPane.rowIndex="0" styleClass="text-field" />
+
+            <Label text="Provincia (*):" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+            <ComboBox fx:id="cmbProvincia" promptText="Seleccionar provincia" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="combo-box" />
+
+            <Label text="Ciudad (*):" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+            <ComboBox fx:id="cmbCiudad" promptText="Seleccionar ciudad" GridPane.columnIndex="3" GridPane.rowIndex="1" styleClass="combo-box" />
+
+            <Label text="Barrio (*):" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+            <ComboBox fx:id="cmbBarrio" promptText="Seleccionar barrio" GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="combo-box" />
+
+            <Label text="Calle:" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+            <TextField fx:id="txtCalle" promptText="Nombre de la calle" GridPane.columnIndex="3" GridPane.rowIndex="2" styleClass="text-field" />
+        </GridPane>
+
+        <GridPane layoutX="10.0" layoutY="315.0" prefWidth="635.0" hgap="10.0" vgap="10.0">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="20.0" />
+                <ColumnConstraints percentWidth="30.0" />
+                <ColumnConstraints percentWidth="50.0" />
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints prefHeight="30.0" />
+            </rowConstraints>
+            <Label text="Número (Calle):" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+            <TextField fx:id="txtNumero" promptText="Nº" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="text-field" />
+        </GridPane>
+
+        <Label layoutX="10.0" layoutY="360.0" text="RED SOCIAL (Opcional)" styleClass="label-section" />
+        <GridPane layoutX="10.0" layoutY="385.0" prefWidth="635.0" hgap="10.0" vgap="10.0">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="20.0" />
+                <ColumnConstraints percentWidth="30.0" />
+                <ColumnConstraints percentWidth="20.0" />
+                <ColumnConstraints percentWidth="30.0" />
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints prefHeight="30.0" />
+            </rowConstraints>
+
+            <Label text="Tipo de Red:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+            <ComboBox fx:id="cmbTipoRedSocial" promptText="Seleccionar" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="combo-box" />
+
+            <Label text="Usuario:" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+            <TextField fx:id="txtUsuarioRedSocial" promptText="Ej: @mi_usuario_insta" GridPane.columnIndex="3" GridPane.rowIndex="0" styleClass="text-field" />
+        </GridPane>
+
+        <HBox alignment="CENTER_RIGHT" layoutX="10.0" layoutY="430.0" prefWidth="635.0" spacing="15.0" styleClass="button-bar">
+            <Button fx:id="btnAltaCliente" onAction="#handleGuardarCliente" text="GUARDAR CLIENTE" styleClass="action-button" />
+        </HBox>
+    </children>
+</AnchorPane>

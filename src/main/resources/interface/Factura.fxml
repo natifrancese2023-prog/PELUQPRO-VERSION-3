@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="controllers.FacturaController">
+
+    <center>
+        <VBox spacing="10" >
+            <padding>
+                <Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
+            <!-- Datos del cliente -->
+            <Label text="Cliente:" style="-fx-font-weight: bold;" />
+            <Label fx:id="lblCliente" />
+
+            <!-- Servicios realizados -->
+            <Label text="Servicios realizados:" style="-fx-font-weight: bold;" />
+            <ListView fx:id="lvServicios" prefHeight="150" />
+
+            <!-- Forma de pago -->
+            <Label text="Forma de pago:" style="-fx-font-weight: bold;" />
+            <ComboBox fx:id="cbFormaPago" prefWidth="200" />
+
+            <!-- Total -->
+            <Label text="Total a pagar:" style="-fx-font-weight: bold;" />
+            <Label fx:id="lblTotal" style="-fx-font-size: 16px;" />
+
+            <!-- Botón de confirmación -->
+            <Button fx:id="btnConfirmar"
+                    text="Confirmar factura"
+                    onAction="#handleConfirmarFactura"
+                    prefWidth="200"
+                    style="-fx-background-color: #4CAF50; -fx-text-fill: white;" />
+        </VBox>
+    </center>
+</BorderPane>

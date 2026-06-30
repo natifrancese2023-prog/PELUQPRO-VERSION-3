@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane fitToHeight="true" fitToWidth="true"
+            stylesheets="@/resource/styles.css"
+            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="controllers.AltaTurnoController">
+    <content>
+        <AnchorPane prefHeight="750.0" prefWidth="950.0">
+            <children>
+                <VBox spacing="20.0">
+                    <padding>
+                        <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
+                    </padding>
+
+                    <Label text="Registro de Nuevo Turno" styleClass="label-header" />
+
+                    <GridPane hgap="15.0" vgap="12.0">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="30.0" />
+                            <ColumnConstraints percentWidth="35.0" />
+                            <ColumnConstraints percentWidth="35.0" />
+                        </columnConstraints>
+
+                        <!-- 1. Identificación del Cliente -->
+                        <Label text="1. Identificación del Cliente" GridPane.columnSpan="3" styleClass="label-section" />
+
+                        <ComboBox fx:id="cbTipoDocumento" promptText="Tipo Doc." GridPane.rowIndex="1" styleClass="combo-box" />
+                        <TextField fx:id="txtDocumento" promptText="Número de Documento" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="text-field" />
+                        <Button fx:id="btnBuscarCliente" text="🔍 Buscar Cliente" onAction="#handleBuscarCliente" GridPane.columnIndex="2" GridPane.rowIndex="1" styleClass="action-button" />
+
+                        <Label fx:id="lblNombreCliente" text="Cliente Seleccionado: N/A" GridPane.columnSpan="3" GridPane.rowIndex="2" styleClass="label-note" />
+
+                        <Separator GridPane.columnSpan="3" GridPane.rowIndex="3" />
+
+                        <!-- 2. Selección de Servicios -->
+                        <Label text="2. Selección de Servicios" GridPane.columnSpan="3" GridPane.rowIndex="4" styleClass="label-section" />
+
+                        <ListView fx:id="lvServicios" prefHeight="200.0" GridPane.columnSpan="2" GridPane.rowIndex="5" styleClass="list-view" />
+
+                        <VBox spacing="5.0" GridPane.columnIndex="2" GridPane.rowIndex="5">
+                            <Label text="Servicios Disponibles:" styleClass="label-subsection" />
+                            <Label fx:id="lblInstruccionesServicios" text="Mantenga CTRL presionado para seleccionar múltiples servicios." wrapText="true" styleClass="label-hint" />
+                        </VBox>
+
+                        <Label fx:id="lblDuracionTotal" text="Duración Total Requerida: 0 minutos" GridPane.columnSpan="2" GridPane.rowIndex="6" styleClass="label-note" />
+
+                        <Separator GridPane.columnSpan="3" GridPane.rowIndex="7" />
+
+                        <!-- 3. Agenda y 4. Turnos Disponibles -->
+                        <Label text="3. Agenda y 4. Turnos Disponibles" GridPane.columnSpan="3" GridPane.rowIndex="8" styleClass="label-section" />
+
+                        <DatePicker fx:id="dpFecha" promptText="Seleccionar Fecha" GridPane.rowIndex="9" styleClass="combo-box" />
+                        <ComboBox fx:id="cbEstilista" promptText="Seleccionar Estilista" GridPane.columnIndex="1" GridPane.rowIndex="9" styleClass="combo-box" />
+                        <Button fx:id="btnBuscarDisponibilidad" text="🔍 Buscar Turnos Libres" onAction="#handleBuscarDisponibilidad" GridPane.columnIndex="2" GridPane.rowIndex="9" styleClass="action-button" />
+
+                        <ListView fx:id="lvTurnosDisponibles" prefHeight="150.0" GridPane.columnSpan="3" GridPane.rowIndex="10" styleClass="list-view" />
+
+                        <Separator GridPane.columnSpan="3" GridPane.rowIndex="11" />
+
+                        <!-- 5. Observaciones -->
+                        <Label text="5. Observaciones" GridPane.columnSpan="3" GridPane.rowIndex="12" styleClass="label-section" />
+                        <TextArea fx:id="txtObservaciones" promptText="Notas sobre el turno (Opcional)" GridPane.columnSpan="2" GridPane.rowIndex="13" styleClass="text-area" />
+
+                        <!-- Botones -->
+                        <Button fx:id="btnCancelar" text="Cancelar" onAction="#handleCancelar" GridPane.columnIndex="0" GridPane.rowIndex="14" styleClass="menu-button-secondary" />
+                        <Button fx:id="btnAgendar" text="✅ AGENDAR TURNO" onAction="#handleAgendarTurno" GridPane.columnIndex="2" GridPane.rowIndex="14" styleClass="action-button" />
+                    </GridPane>
+                </VBox>
+            </children>
+        </AnchorPane>
+    </content>
+</ScrollPane>

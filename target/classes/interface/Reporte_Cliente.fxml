@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Button?>
+
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="controllers.ReporteClienteController">
+
+    <top>
+        <HBox spacing="10" style="-fx-padding: 10;">
+            <Label text="Filtro de clientes:"/>
+            <ComboBox fx:id="cbFiltro" prefWidth="200"/>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="10" style="-fx-padding: 10;">
+            <TableView fx:id="tablaClientes" prefHeight="300">
+                <columns>
+                    <TableColumn fx:id="colNombre" text="Nombre completo" prefWidth="150"/>
+                    <TableColumn fx:id="colTelefono" text="Teléfono" prefWidth="100"/>
+                    <TableColumn fx:id="colEmail" text="Email" prefWidth="150"/>
+                    <TableColumn fx:id="colVisitas" text="Visitas" prefWidth="80"/>
+                    <TableColumn fx:id="colGasto" text="Gasto total" prefWidth="100"/>
+                    <TableColumn fx:id="colEstadoTurno" text="Estado último turno" prefWidth="150"/>
+                </columns>
+            </TableView>
+
+            <BarChart fx:id="graficoClientes" prefHeight="300" prefWidth="600">
+                <xAxis>
+                    <CategoryAxis label="Cliente"/>
+                </xAxis>
+                <yAxis>
+                    <NumberAxis label="Gasto total"/>
+                </yAxis>
+            </BarChart>
+
+            <Button text="Exportar a PDF" onAction="#exportarPDF"/>
+            <Button text="Exportar a Excel" onAction="#exportarExcel"/>
+        </VBox>
+    </center>
+</BorderPane>
