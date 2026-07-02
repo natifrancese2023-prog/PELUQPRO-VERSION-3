@@ -11,6 +11,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import utilidades.AlertaUtil;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -78,7 +79,7 @@ public class HistorialClienteController implements Initializable, ConsultaClient
     @FXML
     private void handleExportarHistorial() {
         if (historialData.isEmpty()) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Exportación Fallida", "No hay datos para exportar.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Exportación Fallida", null, "No hay datos para exportar.");
             return;
         }
 
@@ -104,11 +105,11 @@ public class HistorialClienteController implements Initializable, ConsultaClient
                             .append(item.getObservaciones().replace('\n', ' ')).append("\n");
                 }
 
-                mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación Exitosa", "El historial ha sido guardado como CSV.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación Exitosa", null, "El historial ha sido guardado como CSV.");
                 System.out.println("✅ Historial exportado a: " + archivoElegido.getAbsolutePath());
 
             } catch (IOException e) {
-                mostrarAlerta(Alert.AlertType.ERROR, "Error de E/S", "No se pudo guardar el archivo.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de E/S", null, "No se pudo guardar el archivo.");
                 e.printStackTrace();
             }
         }
@@ -118,13 +119,5 @@ public class HistorialClienteController implements Initializable, ConsultaClient
     private void handleCerrarVentana() {
         Stage stage = (Stage) btnCerrar.getScene().getWindow();
         stage.close();
-    }
-
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
-        Alert alert = new Alert(tipo);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
     }
 }

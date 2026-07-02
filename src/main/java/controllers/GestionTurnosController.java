@@ -9,6 +9,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
+import utilidades.AlertaUtil;
 
 import java.io.IOException;
 import java.net.URL;
@@ -18,7 +19,6 @@ public class GestionTurnosController implements Initializable {
 
     @FXML private AnchorPane panelContenidoTurnos;
     @FXML private Button btnVolverPanel;
-
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -52,7 +52,7 @@ public class GestionTurnosController implements Initializable {
 
         } catch (IOException e) {
             e.printStackTrace();
-            mostrarAlerta(Alert.AlertType.ERROR, "Error al cargar módulo", "No se pudo cargar el submódulo solicitado.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error al cargar módulo", null, "No se pudo cargar el submódulo solicitado.");
         }
     }
 
@@ -62,7 +62,6 @@ public class GestionTurnosController implements Initializable {
     @FXML
     private void handleVolverPanelPrincipal(javafx.event.ActionEvent event) {
         try {
-            // Usamos FXMLLoader explícito
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/panelPrincipal.fxml"));
             Parent root = loader.load();
 
@@ -75,28 +74,15 @@ public class GestionTurnosController implements Initializable {
 
         } catch (IOException e) {
             e.printStackTrace();
-            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudo volver al panel principal.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null, "No se pudo volver al panel principal.");
         } catch (NullPointerException npe) {
             System.err.println("❌ No se encontró el archivo MainPanel.fxml en la ruta especificada.");
         }
     }
 
-
-    /**
-     * Muestra una alerta simple.
-     */
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
-        Alert alert = new Alert(tipo);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
-    }
     @FXML
     private void handleVolverPanelPrincipal() {
         Stage stage = (Stage) btnVolverPanel.getScene().getWindow();
         stage.close();
     }
-
-
 }

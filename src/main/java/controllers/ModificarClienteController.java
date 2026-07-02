@@ -9,6 +9,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
+import utilidades.AlertaUtil;
 
 import java.net.URL;
 import java.sql.SQLException;
@@ -44,12 +45,12 @@ public class ModificarClienteController implements Initializable {
     @FXML
     private void handleGuardarCambios() {
         if (clienteActual == null) {
-            mostrarAlerta(AlertType.WARNING, "Error de Modificación", "No hay cliente seleccionado", "Primero debe seleccionar un cliente válido.");
+            AlertaUtil.mostrarAlerta(AlertType.WARNING, "Error de Modificación", "No hay cliente seleccionado", "Primero debe seleccionar un cliente válido.");
             return;
         }
 
         if (!validarCampos()) {
-            mostrarAlerta(AlertType.ERROR, "Validación Fallida", "Campos Requeridos Incompletos", "Por favor, complete todos los campos obligatorios antes de guardar.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Validación Fallida", "Campos Requeridos Incompletos", "Por favor, complete todos los campos obligatorios antes de guardar.");
             return;
         }
 
@@ -79,18 +80,18 @@ public class ModificarClienteController implements Initializable {
             boolean exito = clienteDAO.actualizar(clienteActual);
 
             if (exito) {
-                mostrarAlerta(AlertType.INFORMATION, "Modificación Exitosa", "Cliente Actualizado", "Los datos del cliente han sido guardados correctamente.");
+                AlertaUtil.mostrarAlerta(AlertType.INFORMATION, "Modificación Exitosa", "Cliente Actualizado", "Los datos del cliente han sido guardados correctamente.");
                 limpiarFormularioEdicion();
                 clienteActual = null;
                 Stage stage = (Stage) txtNombre.getScene().getWindow();
                 stage.close();
             } else {
-                mostrarAlerta(AlertType.ERROR, "Fallo Lógico", "Error al Modificar", "No se pudo actualizar el cliente. Revise los datos e inténtelo de nuevo.");
+                AlertaUtil.mostrarAlerta(AlertType.ERROR, "Fallo Lógico", "Error al Modificar", "No se pudo actualizar el cliente. Revise los datos e inténtelo de nuevo.");
             }
         } catch (SQLException e) {
             System.err.println("❌ Error de BD al actualizar cliente: " + e.getMessage());
             e.printStackTrace();
-            mostrarAlerta(AlertType.ERROR, "Error de Base de Datos", "Fallo al Guardar", "Hubo un error al intentar modificar el cliente. Verifique la conexión.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error de Base de Datos", "Fallo al Guardar", "Hubo un error al intentar modificar el cliente. Verifique la conexión.");
         }
     }
 
@@ -107,7 +108,7 @@ public class ModificarClienteController implements Initializable {
         } catch (SQLException e) {
             System.err.println("❌ Error de BD al cargar combos iniciales: " + e.getMessage());
             e.printStackTrace();
-            mostrarAlerta(AlertType.ERROR, "Error de Conexión", "Error de Base de Datos", "No se pudieron cargar los datos iniciales de la aplicación. Verifique la conexión.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error de Conexión", "Error de Base de Datos", "No se pudieron cargar los datos iniciales de la aplicación. Verifique la conexión.");
         }
     }
 
@@ -120,7 +121,7 @@ public class ModificarClienteController implements Initializable {
         } catch (SQLException e) {
             System.err.println("❌ Error de BD al cargar ciudades: " + e.getMessage());
             e.printStackTrace();
-            mostrarAlerta(AlertType.ERROR, "Error de Conexión", "Fallo al Cargar Ciudades", "No se pudieron cargar las ciudades para la provincia seleccionada.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error de Conexión", "Fallo al Cargar Ciudades", "No se pudieron cargar las ciudades para la provincia seleccionada.");
         }
     }
 
@@ -132,7 +133,7 @@ public class ModificarClienteController implements Initializable {
         } catch (SQLException e) {
             System.err.println("❌ Error de BD al cargar barrios: " + e.getMessage());
             e.printStackTrace();
-            mostrarAlerta(AlertType.ERROR, "Error de Conexión", "Fallo al Cargar Barrios", "No se pudieron cargar los barrios para la ciudad seleccionada.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error de Conexión", "Fallo al Cargar Barrios", "No se pudieron cargar los barrios para la ciudad seleccionada.");
         }
     }
 
@@ -181,13 +182,5 @@ public class ModificarClienteController implements Initializable {
             cmbTipoRedSocial.getSelectionModel().clearSelection();
             txtUsuarioRedSocial.clear();
         }
-    }
-
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String encabezado, String contenido) {
-        Alert alerta = new Alert(tipo);
-        alerta.setTitle(titulo);
-        alerta.setHeaderText(encabezado);
-        alerta.setContentText(contenido);
-        alerta.showAndWait();
     }
 }

@@ -5,10 +5,13 @@ import dao.*;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import utilidades.AlertaUtil;
 
-import java.sql.Connection;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.util.List;
+import utilidades.AlertaUtil;
 
 public class FacturaController {
 
@@ -18,14 +21,14 @@ public class FacturaController {
     @FXML private Label lblTotal;
     @FXML private Button btnConfirmar;
 
-    private double totalCalculado;
-    private double montoFinal;
+    private BigDecimal totalCalculado;
+    private BigDecimal montoFinal;
+
 
     private final visitaDAO visitaDAO = new visitaDAO();
     private final ClienteDAO clienteDAO = new ClienteDAO();
     private final MetodoPagoDAO metodoPagoDAO = new MetodoPagoDAO();
     private final FacturaDAO facturaDAO = new FacturaDAO();
-    private final TurnoDAO turnoDAO = new TurnoDAO(); // ✅ para actualizar estado del turno
 
     private Visita visitaActual;
     private Cliente clienteActual;
@@ -34,14 +37,14 @@ public class FacturaController {
     public void cargarFacturaDesdeVisita(int idVisita) {
         visitaActual = visitaDAO.obtenerVisitaPorId(idVisita);
         if (visitaActual == null) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se encontró la visita.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null,"No se encontró la visita.");
             return;
         }
 
         try {
             clienteActual = clienteDAO.obtenerPorId(visitaActual.getIdCliente());
         } catch (SQLException e) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudo obtener el cliente.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null,"No se pudo obtener el cliente.");
             return;
         }
 
@@ -71,16 +74,14 @@ public class FacturaController {
 
         calcularMontoFinal();
     }
-
     public void calcularTotalServicios() {
         if (visitaActual == null) return;
 
         List<Servicio> servicios = visitaActual.getServiciosRealizados();
         totalCalculado = servicios.stream()
-                .mapToDouble(Servicio::getPrecio)
-                .sum();
+                .map(servicio -> BigDecimal.valueOf(servicio.getPrecio()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
-
     private void calcularMontoFinal() {
         String nombreMetodo = cbFormaPago.getValue();
         calcularTotalServicios();
@@ -88,8 +89,10 @@ public class FacturaController {
         try {
             MetodoPago metodo = metodoPagoDAO.obtenerPorNombre(nombreMetodo);
             if (metodo != null) {
-                double porcentaje = metodo.getPorcentajeModificador();
-                montoFinal = totalCalculado + (totalCalculado * porcentaje / 100);
+                BigDecimal porcentaje = BigDecimal.valueOf(metodo.getPorcentajeModificador());
+                montoFinal = totalCalculado.add(
+                        totalCalculado.multiply(porcentaje).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                );
             } else {
                 montoFinal = totalCalculado;
             }
@@ -98,7 +101,7 @@ public class FacturaController {
             montoFinal = totalCalculado;
         }
 
-        lblTotal.setText("Total: $" + String.format("%.2f", montoFinal));
+        lblTotal.setText("Total: $" + montoFinal.setScale(2, RoundingMode.HALF_UP));
     }
 
     @FXML
@@ -111,13 +114,13 @@ public class FacturaController {
             String nombreMetodo = cbFormaPago.getValue();
             MetodoPago metodo = metodoPagoDAO.obtenerPorNombre(nombreMetodo);
             if (metodo == null) {
-                mostrarAlerta(Alert.AlertType.ERROR, "Error", "Método de pago no válido.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null,"Método de pago no válido.");
                 return;
             }
 
             int idTurno = visitaActual.getIdTurno();
             if (idTurno <= 0) {
-                mostrarAlerta(Alert.AlertType.ERROR, "Error", "El turno asociado no es válido.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null,"El turno asociado no es válido.");
                 return;
             }
 
@@ -125,7 +128,7 @@ public class FacturaController {
             if (facturaExistente != null &&
                     facturaExistente.getEstadoFactura() != null &&
                     facturaExistente.getEstadoFactura().getIdEstadoFactura() == 2) {
-                mostrarAlerta(Alert.AlertType.WARNING, "Turno ya facturado", "Este turno ya tiene una factura marcada como PAGADA.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Turno ya facturado", null,"Este turno ya tiene una factura marcada como PAGADA.");
                 return;
             }
 
@@ -138,26 +141,19 @@ public class FacturaController {
             // Estado de la factura → Pagada
             facturaGenerada.setEstadoFactura(new EstadoFactura(2, "Pagada"));
 
-            // Guardar factura
+            // Guardar factura (esto ya deja el turno en estado FACTURADO dentro
+            // de la misma transacción — ver FacturaDAO.guardarFactura). No se
+            // vuelve a tocar el estado del turno acá para evitar una segunda
+            // actualización redundante y una conexión aparte sin cerrar.
             facturaDAO.guardarFactura(facturaGenerada, idTurno, metodo.getIdMetodo());
 
-            Connection conn = ConexionBD.getConnection();
-            turnoDAO.actualizarEstadoTurno(conn, idTurno, 5);
-
-            mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Factura registrada correctamente y turno marcado como Facturado.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", null,"Factura registrada correctamente y turno marcado como Facturado.");
             btnConfirmar.setDisable(true);
 
         } catch (SQLException e) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error SQL", "No se pudo guardar la factura:\n" + e.getMessage());
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error SQL", null,"No se pudo guardar la factura:\n" + e.getMessage());
             System.err.println("🧨 Error completo: " + e);
         }
     }
 
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
-        Alert alert = new Alert(tipo);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
-    }
 }

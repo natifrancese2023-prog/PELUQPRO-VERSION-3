@@ -11,6 +11,10 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
+import utilidades.AlertaUtil;
+
+import java.io.IOException;
+import java.util.function.Consumer;
 
 public class FichaClienteController {
 
@@ -35,7 +39,7 @@ public class FichaClienteController {
         String nroDoc = txtDocumento.getText().trim();
 
         if (nroDoc.isEmpty()) {
-            mostrarAlerta("Debe ingresar un número de documento.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Aviso", null, "Debe ingresar un número de documento.");
             return;
         }
 
@@ -47,32 +51,37 @@ public class FichaClienteController {
                 txtTelefono.setText(clienteActual.getTelefono());
                 txtFechaAlta.setText(clienteActual.getFechaAlta() != null ? clienteActual.getFechaAlta().toString() : "Sin fecha");
             } else {
-                mostrarAlerta("Cliente no encontrado.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Aviso", null, "Cliente no encontrado.");
                 limpiarCampos();
             }
         } catch (Exception e) {
-            mostrarAlerta("Error al consultar el cliente. Verifique los datos.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null, "Error al consultar el cliente. Verifique los datos.");
             e.printStackTrace();
         }
+    }
+
+    private <T> void abrirVentana(String fxml, String titulo, Consumer<T> configurarControlador) throws IOException {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource(fxml));
+        Stage stage = new Stage();
+        stage.setScene(new Scene(loader.load()));
+        T controller = loader.getController();
+        configurarControlador.accept(controller);
+        stage.setTitle(titulo);
+        stage.show();
     }
 
     @FXML
     private void modificarCliente() {
         if (clienteActual == null) {
-            mostrarAlerta("Debe buscar un cliente primero.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Aviso", null, "Debe buscar un cliente primero.");
             return;
         }
 
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/ModificarCliente.fxml"));
-            Stage stage = new Stage();
-            stage.setScene(new Scene(loader.load()));
-            ModificarClienteController controller = loader.getController();
-            controller.setCliente(clienteActual);
-            stage.setTitle("Modificar Cliente");
-            stage.show();
+            abrirVentana("/interface/ModificarCliente.fxml", "Modificar Cliente",
+                    (ModificarClienteController controller) -> controller.setCliente(clienteActual));
         } catch (Exception e) {
-            mostrarAlerta("No se pudo abrir la ventana de modificación.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null, "No se pudo abrir la ventana de modificación.");
             e.printStackTrace();
         }
     }
@@ -80,20 +89,15 @@ public class FichaClienteController {
     @FXML
     private void eliminarCliente() {
         if (clienteActual == null) {
-            mostrarAlerta("Debe buscar un cliente primero.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Aviso", null, "Debe buscar un cliente primero.");
             return;
         }
 
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/EliminarCliente.fxml"));
-            Stage stage = new Stage();
-            stage.setScene(new Scene(loader.load()));
-            EliminarClienteController controller = loader.getController();
-            controller.setCliente(clienteActual);
-            stage.setTitle("Eliminar Cliente");
-            stage.show();
+            abrirVentana("/interface/EliminarCliente.fxml", "Eliminar Cliente",
+                    (EliminarClienteController controller) -> controller.setCliente(clienteActual));
         } catch (Exception e) {
-            mostrarAlerta("No se pudo abrir la ventana de eliminación.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null, "No se pudo abrir la ventana de eliminación.");
             e.printStackTrace();
         }
     }
@@ -101,20 +105,15 @@ public class FichaClienteController {
     @FXML
     private void verHistorial() {
         if (clienteActual == null) {
-            mostrarAlerta("Debe buscar un cliente primero.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Aviso", null, "Debe buscar un cliente primero.");
             return;
         }
 
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/HistorialCliente.fxml"));
-            Stage stage = new Stage();
-            stage.setScene(new Scene(loader.load()));
-            HistorialClienteController controller = loader.getController();
-            controller.setCliente(clienteActual);
-            stage.setTitle("Historial del Cliente");
-            stage.show();
+            abrirVentana("/interface/HistorialCliente.fxml", "Historial del Cliente",
+                    (HistorialClienteController controller) -> controller.setCliente(clienteActual));
         } catch (Exception e) {
-            mostrarAlerta("No se pudo abrir el historial del cliente.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null, "No se pudo abrir el historial del cliente.");
             e.printStackTrace();
         }
     }
@@ -122,30 +121,17 @@ public class FichaClienteController {
     @FXML
     private void registrarVisita() {
         if (clienteActual == null) {
-            mostrarAlerta("Debe buscar un cliente primero.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Aviso", null, "Debe buscar un cliente primero.");
             return;
         }
 
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/CargarVisita.fxml"));
-            Stage stage = new Stage();
-            stage.setScene(new Scene(loader.load()));
-            CargarVisitaController controller = loader.getController();
-            controller.setCliente(clienteActual);
-            stage.setTitle("Registrar Visita");
-            stage.show();
+            abrirVentana("/interface/CargarVisita.fxml", "Registrar Visita",
+                    (CargarVisitaController controller) -> controller.setCliente(clienteActual));
         } catch (Exception e) {
-            mostrarAlerta("No se pudo abrir el registro de visita.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null, "No se pudo abrir el registro de visita.");
             e.printStackTrace();
         }
-    }
-
-    private void mostrarAlerta(String mensaje) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Información");
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
     }
 
     private void limpiarCampos() {

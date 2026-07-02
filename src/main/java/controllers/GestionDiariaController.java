@@ -28,6 +28,7 @@ import javafx.scene.control.TableRow;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.beans.property.SimpleStringProperty;
+import utilidades.AlertaUtil;
 
 public class GestionDiariaController implements Initializable {
 
@@ -138,7 +139,7 @@ public class GestionDiariaController implements Initializable {
             cbEstilistaFiltro.setItems(items);
             cbEstilistaFiltro.getSelectionModel().select(0);
         } catch (SQLException e) {
-            mostrarAlerta(AlertType.ERROR, "Error de BD", "No se pudieron cargar los estilistas.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error de BD", null, "No se pudieron cargar los estilistas.");
         }
     }
 
@@ -162,7 +163,7 @@ public class GestionDiariaController implements Initializable {
             listaTurnos.clear();
             listaTurnos.addAll(turnos);
         } catch (SQLException e) {
-            mostrarAlerta(AlertType.ERROR, "Error de Conexión", "No se pudo cargar la agenda: " + e.getMessage());
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error de Conexión", null, "No se pudo cargar la agenda: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -186,12 +187,12 @@ public class GestionDiariaController implements Initializable {
         Turno turnoSeleccionado = tvTurnos.getSelectionModel().getSelectedItem();
 
         if (turnoSeleccionado == null) {
-            mostrarAlerta(AlertType.WARNING, "Sin selección", "Debe seleccionar un turno.");
+            AlertaUtil.mostrarAlerta(AlertType.WARNING, "Sin selección", null, "Debe seleccionar un turno.");
             return;
         }
 
         if (!turnoSeleccionado.puedeCambiarA(nuevoEstado)) {
-            mostrarAlerta(AlertType.ERROR, "Transición inválida", "No se puede cambiar de " + turnoSeleccionado.getEstadoTurno().getNombre() + " a " + nuevoEstado.getNombre());
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Transición inválida", null, "No se puede cambiar de " + turnoSeleccionado.getEstadoTurno().getNombre() + " a " + nuevoEstado.getNombre());
             return;
         }
 
@@ -201,9 +202,9 @@ public class GestionDiariaController implements Initializable {
             turnoSeleccionado.setEstadoTurno(nuevoEstado);
             turnoSeleccionado.setMotivoLog(motivo);
             tvTurnos.refresh();
-            mostrarAlerta(AlertType.INFORMATION, "Éxito", "Turno actualizado a " + nuevoEstado.getNombre());
+            AlertaUtil.mostrarAlerta(AlertType.INFORMATION, "Éxito", null, "Turno actualizado a " + nuevoEstado.getNombre());
         } catch (SQLException e) {
-            mostrarAlerta(AlertType.ERROR, "Error de BD", "No se pudo actualizar el estado del turno.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error de BD", null, "No se pudo actualizar el estado del turno.");
             e.printStackTrace();
         }
     }
@@ -223,41 +224,34 @@ public class GestionDiariaController implements Initializable {
 
         // Activación del botón Facturar solo si está FINALIZADO, tiene visita y NO tiene factura
         if (turno.getEstadoTurno() == EstadoTurno.FINALIZADO) {
-            System.out.println("🔍 Turno en estado FINALIZADO: " + turno.getIdTurno());
-
             Visita visita = visitaDAO.obtenerVisitaPorTurno(turno.getIdTurno());
             boolean tieneVisita = visita != null;
-            System.out.println("🔍 ¿Visita encontrada?: " + tieneVisita);
 
             boolean sinFactura = true;
             try {
                 Factura facturaExistente = facturaDAO.obtenerPorTurno(turno.getIdTurno());
                 sinFactura = (facturaExistente == null);
-                System.out.println("🔍 ¿Factura ya existe?: " + (facturaExistente != null));
             } catch (SQLException e) {
-                System.err.println("🧨 Error al verificar factura existente: " + e.getMessage());
+                System.err.println("Error al verificar factura existente: " + e.getMessage());
             }
 
             btnFacturar.setDisable(!(tieneVisita && sinFactura));
-            System.out.println("🔍 ¿Botón Facturar activado?: " + !btnFacturar.isDisable());
         } else {
-            System.out.println("🔍 Turno NO está finalizado. Estado actual: " + turno.getEstadoTurno());
             btnFacturar.setDisable(true);
         }
     }
-
 
     @FXML
     private void handleFacturarTurno() throws SQLException {
         Turno turnoSeleccionado = tvTurnos.getSelectionModel().getSelectedItem();
 
         if (turnoSeleccionado == null) {
-            mostrarAlerta(AlertType.WARNING, "Sin selección", "Debe seleccionar un turno para facturar.");
+            AlertaUtil.mostrarAlerta(AlertType.WARNING, "Sin selección", null, "Debe seleccionar un turno para facturar.");
             return;
         }
 
         if (turnoSeleccionado.getEstadoTurno() != EstadoTurno.FINALIZADO) {
-            mostrarAlerta(AlertType.ERROR, "Estado inválido", "Solo se puede facturar un turno que esté Finalizado.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Estado inválido", null, "Solo se puede facturar un turno que esté Finalizado.");
             return;
         }
 
@@ -266,7 +260,7 @@ public class GestionDiariaController implements Initializable {
         if (visita != null) {
             abrirPantallaFacturacion(visita.getIdVisita());
         } else {
-            mostrarAlerta(AlertType.ERROR, "Sin visita", "Este turno no tiene una visita registrada.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Sin visita", null, "Este turno no tiene una visita registrada.");
         }
     }
 
@@ -275,29 +269,18 @@ public class GestionDiariaController implements Initializable {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/Factura.fxml"));
             Parent root = loader.load();
 
-            // Accede al controlador de la vista Factura
             FacturaController controller = loader.getController();
-            controller.cargarFacturaDesdeVisita(idVisita); // Método que vos definís en FacturaController
+            controller.cargarFacturaDesdeVisita(idVisita);
 
             Stage stage = new Stage();
             stage.setTitle("Facturación");
             stage.setScene(new Scene(root));
-            stage.initModality(Modality.APPLICATION_MODAL); // Bloquea la ventana anterior si querés
+            stage.initModality(Modality.APPLICATION_MODAL);
             stage.show();
 
         } catch (IOException e) {
-            mostrarAlerta(AlertType.ERROR, "Error al abrir pantalla", "No se pudo cargar la pantalla de facturación.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error al abrir pantalla", null, "No se pudo cargar la pantalla de facturación.");
             e.printStackTrace();
         }
     }
-
-
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
-        Alert alert = new Alert(tipo);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
-    }
-
 }

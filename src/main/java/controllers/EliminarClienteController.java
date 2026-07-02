@@ -12,6 +12,7 @@ import java.net.URL;
 import java.sql.SQLException;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import utilidades.AlertaUtil;
 
 public class EliminarClienteController implements Initializable {
 
@@ -48,7 +49,7 @@ public class EliminarClienteController implements Initializable {
     @FXML
     private void handleEliminarCliente() {
         if (clienteActual == null) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error", "Debe seleccionar un cliente antes de eliminar.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null,"Debe seleccionar un cliente antes de eliminar.");
             System.out.println("⚠️ No se seleccionó ningún cliente para eliminar.");
             return;
         }
@@ -68,10 +69,10 @@ public class EliminarClienteController implements Initializable {
                 boolean eliminado = clienteDAO.eliminar(clienteActual);
 
                 if (eliminado) {
-                    mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Cliente eliminado con éxito del sistema.");
+                    AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", null,"Cliente eliminado con éxito del sistema.");
                     System.out.println("✅ Cliente eliminado correctamente.");
                 } else {
-                    mostrarAlerta(Alert.AlertType.ERROR, "Fallo en la Eliminación", "La eliminación del cliente no se pudo completar.");
+                    AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fallo en la Eliminación", null,"La eliminación del cliente no se pudo completar.");
                     System.out.println("❌ El método eliminar devolvió false. Posible ID inexistente o bloqueo por integridad.");
                 }
 
@@ -81,12 +82,12 @@ public class EliminarClienteController implements Initializable {
                 System.out.println("🧾 Mensaje de error: " + e.getMessage());
 
                 if (e.getMessage().contains("a foreign key constraint fails")) {
-                    mostrarAlerta(Alert.AlertType.WARNING, "Eliminación bloqueada",
-                            "Este cliente tiene registros asociados. Elimine primero sus visitas, turnos o facturas.");
+                    AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Eliminación bloqueada",
+                            null,"Este cliente tiene registros asociados. Elimine primero sus visitas, turnos o facturas.");
                     System.out.println("🔒 Eliminación bloqueada por restricción de clave foránea.");
                 } else {
-                    mostrarAlerta(Alert.AlertType.ERROR, "Error de Base de Datos",
-                            "Ocurrió un error al eliminar el cliente.");
+                    AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de Base de Datos",
+                            null,"Ocurrió un error al eliminar el cliente.");
                     System.out.println("⚠️ Error inesperado al eliminar cliente.");
                 }
             } finally {
@@ -111,11 +112,4 @@ public class EliminarClienteController implements Initializable {
         txtApellido.clear();
     }
 
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
-        Alert alert = new Alert(tipo);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
-    }
 }

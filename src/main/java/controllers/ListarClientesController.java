@@ -9,18 +9,13 @@ import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.Node;
-import javafx.event.ActionEvent;
+import javafx.scene.control.*;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.scene.control.Button;
-import javafx.scene.control.TableCell;
 import javafx.stage.Stage;
+import javafx.scene.Node;
+import javafx.event.ActionEvent;
+import utilidades.AlertaUtil;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -35,7 +30,7 @@ public class ListarClientesController implements Initializable {
     @FXML private TableColumn<Cliente, String> colDocumento;
     @FXML private TableColumn<Cliente, String> colFechaAlta;
     @FXML private TableColumn<Cliente, Integer> colNumeroVisitas;
-    @FXML private TableColumn<Cliente, Void> colAccion; // ✅ columna para el botón "Ver"
+    @FXML private TableColumn<Cliente, Void> colAccion;
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -44,7 +39,6 @@ public class ListarClientesController implements Initializable {
     }
 
     private void configurarColumnas() {
-        // ✅ columnas normales
         colNombre.setCellValueFactory(cellData ->
                 new SimpleStringProperty(
                         cellData.getValue().getPersona() != null ? cellData.getValue().getPersona().getNombre() : "-"
@@ -63,16 +57,14 @@ public class ListarClientesController implements Initializable {
                 )
         );
 
-        colFechaAlta.setCellValueFactory(new PropertyValueFactory<>("fechaAltaString"));
+        colFechaAlta.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("fechaAltaString"));
 
-        // 🔎 columna de visitas calculada dinámicamente por id_cliente
         colNumeroVisitas.setCellValueFactory(cellData -> {
             Cliente cliente = cellData.getValue();
             int cantidadVisitas = clienteDAO.contarVisitasPorIdCliente(cliente.getIdCliente());
             return new SimpleIntegerProperty(cantidadVisitas).asObject();
         });
 
-        // ✅ columna de acción con botón "Ver"
         colAccion.setCellFactory(col -> new TableCell<>() {
             private final Button btnVer = new Button("Ver");
 
@@ -103,8 +95,7 @@ public class ListarClientesController implements Initializable {
             ObservableList<Cliente> listaClientes = FXCollections.observableArrayList(clienteDAO.obtenerTodos());
             tblClientes.setItems(listaClientes);
         } catch (Exception e) {
-            mostrarAlerta(AlertType.ERROR, "Error", "Carga de clientes",
-                    "No se pudieron cargar los clientes: " + e.getMessage(), null);
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", "Carga de clientes", "No se pudieron cargar los clientes: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -134,9 +125,8 @@ public class ListarClientesController implements Initializable {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/historialCliente.fxml"));
             Parent root = loader.load();
 
-            // ✅ obtenemos el controller del historial
             HistorialClienteController controller = loader.getController();
-            controller.setCliente(cliente); // le pasamos el cliente completo
+            controller.setCliente(cliente);
 
             Stage stage = new Stage();
             stage.setTitle("Historial del Cliente");
@@ -145,16 +135,7 @@ public class ListarClientesController implements Initializable {
 
         } catch (Exception e) {
             e.printStackTrace();
-            mostrarAlerta(AlertType.ERROR, "Error", "Historial",
-                    "No se pudo abrir el historial del cliente con documento " + documento, null);
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", "Historial", "No se pudo abrir el historial del cliente con documento " + documento);
         }
-    }
-
-    private void mostrarAlerta(AlertType tipo, String titulo, String encabezado, String contenido, String header) {
-        Alert alerta = new Alert(tipo);
-        alerta.setTitle(titulo);
-        alerta.setHeaderText(encabezado);
-        alerta.setContentText(contenido);
-        alerta.showAndWait();
     }
 }

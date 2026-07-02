@@ -2,19 +2,25 @@ package controllers;
 
 import claseslogicas.Cliente;
 import claseslogicas.ClienteRedSocial;
-import claseslogicas.Empleado;
+
 import dao.ClienteDAO;
-import dao.ConexionBD;
+
 import javafx.collections.FXCollections; // Necesario para setAll/getItems
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import java.net.URL;
-import java.sql.Connection;
+
 import java.sql.SQLException; // Importación necesaria
 import java.util.List;
 import java.util.ResourceBundle;
+import utilidades.AlertaUtil;
+
+
+
+
+
 
 public class AltaClienteController implements Initializable {
 
@@ -97,7 +103,7 @@ public class AltaClienteController implements Initializable {
                     cmbCiudad.setItems(FXCollections.observableArrayList(ciudades));
                 } catch (SQLException e) {
                     System.err.println("❌ Error de BD al cargar ciudades: " + e.getMessage());
-                    mostrarAlerta(Alert.AlertType.ERROR, "Error de Conexión", "Fallo al Cargar Ciudades", "No se pudieron cargar las ciudades.");
+                    AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de Conexión", "Fallo al Cargar Ciudades", "No se pudieron cargar las ciudades.");
                 }
             }
         });
@@ -112,7 +118,7 @@ public class AltaClienteController implements Initializable {
                     cmbBarrio.setItems(FXCollections.observableArrayList(barrios));
                 } catch (SQLException e) {
                     System.err.println("❌ Error de BD al cargar barrios: " + e.getMessage());
-                    mostrarAlerta(Alert.AlertType.ERROR, "Error de Conexión", "Fallo al Cargar Barrios", "No se pudieron cargar los barrios.");
+                    AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de Conexión", "Fallo al Cargar Barrios", "No se pudieron cargar los barrios.");
                 }
             }
         });
@@ -154,12 +160,12 @@ public class AltaClienteController implements Initializable {
             boolean insertado = clienteDAO.insertar(nuevoCliente);
 
             if (insertado) {
-                mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Alta Exitosa",
+                AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Alta Exitosa",
                         "El nuevo cliente ha sido registrado en la base de datos.");
                 handleCancelar(); // Limpiar campos
             } else {
                 // Si retorna false, es un fallo lógico detectado por el DAO (ej: ID no encontrado)
-                mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Lógica", "Error de Inserción",
+                AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Lógica", "Error de Inserción",
                         "No se pudo registrar el cliente. Posiblemente faltan IDs de FKs (Tipo Documento, Barrio).");
             }
 
@@ -167,7 +173,7 @@ public class AltaClienteController implements Initializable {
             // Manejamos la SQLException específica delegada por el DAO
             System.err.println("❌ ERROR DE TRANSACCIÓN BD: " + e.getMessage());
             e.printStackTrace();
-            mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Base de Datos", "Error de Conexión o Duplicidad",
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Base de Datos", "Error de Conexión o Duplicidad",
                     "Ocurrió un error al intentar registrar el cliente. Verifique la conexión o si el documento ya existe.");
         }
     }
@@ -177,24 +183,49 @@ public class AltaClienteController implements Initializable {
     private void handleCancelar() {
         limpiarCampos();
     }
+    // Regex de validación
+    private static final String EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
+    private static final String PHONE_REGEX = "^[0-9]{7,15}$";       // Teléfono: solo dígitos, 7-15 caracteres
+    private static final String DOCUMENT_REGEX = "^[0-9]{6,12}$";    // Documento: solo dígitos, 6-12 caracteres
 
     private boolean validarCampos() {
+        // Validación de campos obligatorios
         if (txtNombre.getText().trim().isEmpty() ||
                 txtApellido.getText().trim().isEmpty() ||
                 txtNumeroDocumento.getText().trim().isEmpty() ||
                 cmbTipoDocumento.getValue() == null ||
-                cmbProvincia.getValue() == null || cmbCiudad.getValue() == null || cmbBarrio.getValue() == null)
-        {
-            mostrarAlerta(Alert.AlertType.WARNING, "Validación Incompleta", "Campos Obligatorios Vacíos",
-                    "Por favor, complete Nombre, Apellido, Documento y la Dirección completa (Provincia, Ciudad, Barrio).");
+                cmbProvincia.getValue() == null || cmbCiudad.getValue() == null || cmbBarrio.getValue() == null) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Incompleta", "Campos Obligatorios Vacíos",
+                    "Por favor, complete Nombre, Apellido, Documento y la Dirección completa.");
             return false;
         }
 
+        // Validación de email
+        if (!txtEmail.getText().trim().matches(EMAIL_REGEX)) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Email", "Formato inválido",
+                    "Ingrese un email válido (ejemplo: usuario@dominio.com).");
+            return false;
+        }
+
+        // Validación de teléfono
+        if (!txtTelefono.getText().trim().matches(PHONE_REGEX)) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Teléfono", "Formato inválido",
+                    "El teléfono debe contener solo dígitos y tener entre 7 y 15 caracteres.");
+            return false;
+        }
+
+        // Validación de documento
+        if (!txtNumeroDocumento.getText().trim().matches(DOCUMENT_REGEX)) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Documento", "Formato inválido",
+                    "El documento debe contener solo dígitos y tener entre 6 y 12 caracteres.");
+            return false;
+        }
+
+        // Validación de red social
         boolean usuarioVacio = txtUsuarioRedSocial.getText().trim().isEmpty();
         boolean tipoVacio = cmbTipoRedSocial.getValue() == null;
-
         if ((!usuarioVacio && tipoVacio) || (usuarioVacio && !tipoVacio)) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Validación Red Social", "Información Incompleta",
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Red Social", "Información Incompleta",
                     "Debe seleccionar el Tipo de Red Social Y escribir el Usuario, o dejar ambos campos vacíos.");
             return false;
         }
@@ -221,12 +252,4 @@ public class AltaClienteController implements Initializable {
 
 
 
-
-    private void mostrarAlerta(Alert.AlertType type, String title, String header, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
 }

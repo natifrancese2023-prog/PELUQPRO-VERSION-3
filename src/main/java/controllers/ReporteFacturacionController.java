@@ -1,19 +1,18 @@
 package controllers;
 
-import claseslogicas.ExportadorReportes;
 import dao.ReporteFacturacionDAO;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.scene.chart.*;
 import javafx.scene.control.*;
-import javafx.scene.image.WritableImage;
 import javafx.stage.FileChooser;
 import claseslogicas.FacturaResumen;
-
+import claseslogicas.ExportadorReporte;
+import claseslogicas.ExportadorPDF;
 
 import java.io.File;
+import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Map;
 
 public class ReporteFacturacionController {
@@ -28,8 +27,6 @@ public class ReporteFacturacionController {
     @FXML private TableColumn<FacturaResumen, String> colFecha;
     @FXML private TableColumn<FacturaResumen, String> colTotal;
     @FXML private TableColumn<FacturaResumen, String> colMetodos;
-    private List<clasesreportes.ClienteReporteExtendido> datosClientes;
-
 
     private final ReporteFacturacionDAO dao = new ReporteFacturacionDAO();
 
@@ -45,10 +42,14 @@ public class ReporteFacturacionController {
         graficoFacturacion.setVisible(false);
         graficoMetodosPago.setVisible(false);
         tablaResumen.setVisible(false);
-        colFecha.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getFecha().toString()));
-        colTotal.setCellValueFactory(data -> new SimpleStringProperty(String.valueOf(data.getValue().getTotalFacturado())));
-        colMetodos.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getResumenMetodosPago()));
 
+        colFecha.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getFecha().toString()));
+        colTotal.setCellValueFactory(data -> new SimpleStringProperty(
+                data.getValue().getTotalFacturado()
+                        .setScale(2, java.math.RoundingMode.HALF_UP)
+                        .toPlainString()   // ✅ BigDecimal → String con 2 decimales
+        ));
+        colMetodos.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getResumenMetodosPago()));
 
         System.out.println("Inicialización completa del panel de reporte.");
     }
@@ -58,19 +59,13 @@ public class ReporteFacturacionController {
         LocalDate inicio = fechaInicio.getValue();
         LocalDate fin = fechaFin.getValue();
 
-        System.out.println("Fecha inicio seleccionada: " + inicio);
-        System.out.println("Fecha fin seleccionada: " + fin);
-
         if (inicio == null || fin == null || fin.isBefore(inicio)) {
-            mostrarAlerta(Alert.AlertType.INFORMATION, "Fechas inválidas", "Seleccioná un período válido.");
+            mostrarAlerta(Alert.AlertType.ERROR, "Fechas inválidas", null, "Seleccioná un período válido.");
             return;
         }
 
-        Map<LocalDate, Double> facturacion = dao.obtenerFacturacionPorDia(inicio, fin);
+        Map<LocalDate, BigDecimal> facturacion = dao.obtenerFacturacionPorDia(inicio, fin);
         Map<String, Integer> metodos = dao.obtenerUsoMetodosPago(inicio, fin);
-
-        System.out.println("Facturación por día recibida: " + facturacion.size() + " registros.");
-        System.out.println("Métodos de pago recibidos: " + metodos.size() + " registros.");
 
         cargarGraficoFacturacion(facturacion);
         cargarGraficoMetodosPago(metodos);
@@ -81,14 +76,16 @@ public class ReporteFacturacionController {
         tablaResumen.setVisible(true);
     }
 
-    private void cargarGraficoFacturacion(Map<LocalDate, Double> datos) {
+    private void cargarGraficoFacturacion(Map<LocalDate, BigDecimal> datos) {
         graficoFacturacion.getData().clear();
         XYChart.Series<String, Number> serie = new XYChart.Series<>();
         serie.setName("Total facturado");
 
-        for (Map.Entry<LocalDate, Double> entry : datos.entrySet()) {
-            System.out.println("Agregando al gráfico de facturación: " + entry.getKey() + " → $" + entry.getValue());
-            serie.getData().add(new XYChart.Data<>(entry.getKey().toString(), entry.getValue()));
+        for (Map.Entry<LocalDate, BigDecimal> entry : datos.entrySet()) {
+            double total = entry.getValue() != null
+                    ? entry.getValue().setScale(2, java.math.RoundingMode.HALF_UP).doubleValue()
+                    : 0.0;
+            serie.getData().add(new XYChart.Data<>(entry.getKey().toString(), total));
         }
 
         graficoFacturacion.getData().add(serie);
@@ -100,50 +97,54 @@ public class ReporteFacturacionController {
         serie.setName("Cantidad de facturas");
 
         for (Map.Entry<String, Integer> entry : datos.entrySet()) {
-            System.out.println("Agregando al gráfico de métodos: " + entry.getKey() + " → " + entry.getValue() + " usos");
-            serie.getData().add(new XYChart.Data<>(entry.getKey(), entry.getValue()));
+            int cantidad = entry.getValue() != null ? entry.getValue() : 0;
+            serie.getData().add(new XYChart.Data<>(entry.getKey(), cantidad));
         }
 
         graficoMetodosPago.getData().add(serie);
     }
 
-    private void cargarTablaResumen(Map<LocalDate, Double> facturacion, Map<String, Integer> metodos) {
+    private void cargarTablaResumen(Map<LocalDate, BigDecimal> facturacion, Map<String, Integer> metodos) {
         tablaResumen.getItems().clear();
-        for (Map.Entry<LocalDate, Double> entry : facturacion.entrySet()) {
-            System.out.println("Agregando a tabla: " + entry.getKey() + " → $" + entry.getValue());
-            tablaResumen.getItems().add(new FacturaResumen(entry.getKey(), entry.getValue(), metodos));
+        for (Map.Entry<LocalDate, BigDecimal> entry : facturacion.entrySet()) {
+            tablaResumen.getItems().add(new FacturaResumen(
+                    entry.getKey(),
+                    entry.getValue() != null ? entry.getValue() : BigDecimal.ZERO,
+                    metodos
+            ));
         }
     }
+
     @FXML
     private void exportarReporte() {
+        if (tablaResumen.getItems().isEmpty()) {
+            mostrarAlerta(Alert.AlertType.WARNING, "Sin datos", null, "No hay información para exportar.");
+            return;
+        }
+
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Guardar reporte PDF");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Archivo PDF", "*.pdf"));
         File archivo = fileChooser.showSaveDialog(null);
+
         if (archivo != null) {
-            WritableImage imgFacturacion = graficoFacturacion.snapshot(null, null);
-            WritableImage imgMetodos = graficoMetodosPago.snapshot(null, null);
-
-            ExportadorReportes.exportarFacturacionPDF(
-                    tablaResumen.getItems(),
-                    archivo,
-                    fechaInicio.getValue(),
-                    fechaFin.getValue(),
-                    imgFacturacion,
-                    imgMetodos
-            );
-
-            mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", "El reporte fue exportado correctamente.");
+            try {
+                ExportadorReporte exportador = new ExportadorPDF();
+                exportador.exportarClientes(tablaResumen.getItems(), archivo);
+                mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", null, "El reporte fue exportado correctamente.");
+            } catch (Exception e) {
+                mostrarAlerta(Alert.AlertType.ERROR, "Error de exportación", null, "Ocurrió un error al generar el archivo PDF.");
+                e.printStackTrace();
+            }
         }
     }
 
-
-    private void mostrarAlerta(Alert.AlertType information, String titulo, String mensaje) {
-        Alert alerta = new Alert(Alert.AlertType.INFORMATION);
+    // ✅ Ahora mostrarAlerta respeta tipo, título, header opcional y mensaje
+    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String header, String mensaje) {
+        Alert alerta = new Alert(tipo);
         alerta.setTitle(titulo);
-        alerta.setHeaderText(null);
+        alerta.setHeaderText(header);
         alerta.setContentText(mensaje);
         alerta.showAndWait();
     }
 }
-

@@ -12,6 +12,38 @@ public class EmpleadoDAO {
 
     private final ConexionBD conexionBD = new ConexionBD();
 
+    /**
+     * Arma un Empleado completo (con su Persona y Rol) a partir de una fila
+     * que trae las columnas de empleado + persona + roles ya unidas por JOIN.
+     * Antes este mismo bloque estaba copiado en obtenerEstilistas(),
+     * obtenerPorId() y obtenerEstilistasPorId(); un cambio en el modelo
+     * Empleado obligaba a editar las 3 copias, con el riesgo de que alguna
+     * quedara desactualizada.
+     */
+    private Empleado mapearEmpleado(ResultSet rs) throws SQLException {
+        Empleado emp = new Empleado();
+        emp.setIdEmpleado(rs.getInt("id_empleado"));
+
+        Persona p = new Persona();
+        p.setIdPersona(rs.getInt("id_persona"));
+        p.setNombre(rs.getString("nombre"));
+        p.setApellido(rs.getString("apellido"));
+        emp.setPersona(p);
+
+        Date sqlDate = rs.getDate("fecha_ingreso");
+        if (sqlDate != null) {
+            emp.setFechaIngreso(sqlDate.toLocalDate());
+        }
+
+        Rol rol = new Rol();
+        rol.setIdRol(rs.getInt("id_rol"));
+        rol.setNombre(rs.getString("nombre_rol"));
+        rol.setEsEstilista(rs.getBoolean("es_estilista"));
+        emp.setRol(rol);
+
+        return emp;
+    }
+
     // 🔥 OBTENER ESTILISTAS
     public List<Empleado> obtenerEstilistas() throws SQLException {
 
@@ -30,33 +62,7 @@ public class EmpleadoDAO {
              ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
-
-                Empleado emp = new Empleado();
-                emp.setIdEmpleado(rs.getInt("id_empleado"));
-
-                // 🔥 PERSONA
-                Persona p = new Persona();
-                p.setIdPersona(rs.getInt("id_persona"));
-                p.setNombre(rs.getString("nombre"));
-                p.setApellido(rs.getString("apellido"));
-
-                emp.setPersona(p);
-
-                // 🔥 FECHA
-                Date sqlDate = rs.getDate("fecha_ingreso");
-                if (sqlDate != null) {
-                    emp.setFechaIngreso(sqlDate.toLocalDate());
-                }
-
-                // 🔥 ROL
-                Rol rol = new Rol();
-                rol.setIdRol(rs.getInt("id_rol"));
-                rol.setNombre(rs.getString("nombre_rol"));
-                rol.setEsEstilista(rs.getBoolean("es_estilista"));
-
-                emp.setRol(rol);
-
-                lista.add(emp);
+                lista.add(mapearEmpleado(rs));
             }
         }
 
@@ -78,36 +84,11 @@ public class EmpleadoDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, idEmpleado);
-            ResultSet rs = ps.executeQuery();
 
-            if (rs.next()) {
-
-                Empleado emp = new Empleado();
-                emp.setIdEmpleado(rs.getInt("id_empleado"));
-
-                // 🔥 PERSONA
-                Persona p = new Persona();
-                p.setIdPersona(rs.getInt("id_persona"));
-                p.setNombre(rs.getString("nombre"));
-                p.setApellido(rs.getString("apellido"));
-
-                emp.setPersona(p);
-
-                // 🔥 FECHA
-                Date sqlDate = rs.getDate("fecha_ingreso");
-                if (sqlDate != null) {
-                    emp.setFechaIngreso(sqlDate.toLocalDate());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapearEmpleado(rs);
                 }
-
-                // 🔥 ROL
-                Rol rol = new Rol();
-                rol.setIdRol(rs.getInt("id_rol"));
-                rol.setNombre(rs.getString("nombre_rol"));
-                rol.setEsEstilista(rs.getBoolean("es_estilista"));
-
-                emp.setRol(rol);
-
-                return emp;
             }
         }
 
@@ -131,36 +112,11 @@ public class EmpleadoDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, idEstilista);
-            ResultSet rs = ps.executeQuery();
 
-            while (rs.next()) {
-
-                Empleado emp = new Empleado();
-                emp.setIdEmpleado(rs.getInt("id_empleado"));
-
-                // 🔥 PERSONA
-                Persona p = new Persona();
-                p.setIdPersona(rs.getInt("id_persona"));
-                p.setNombre(rs.getString("nombre"));
-                p.setApellido(rs.getString("apellido"));
-
-                emp.setPersona(p);
-
-                // 🔥 FECHA
-                Date sqlDate = rs.getDate("fecha_ingreso");
-                if (sqlDate != null) {
-                    emp.setFechaIngreso(sqlDate.toLocalDate());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(mapearEmpleado(rs));
                 }
-
-                // 🔥 ROL
-                Rol rol = new Rol();
-                rol.setIdRol(rs.getInt("id_rol"));
-                rol.setNombre(rs.getString("nombre_rol"));
-                rol.setEsEstilista(rs.getBoolean("es_estilista"));
-
-                emp.setRol(rol);
-
-                lista.add(emp);
             }
         }
 
@@ -168,6 +124,8 @@ public class EmpleadoDAO {
     }
 
     // 🔥 OBTENER POR ID PERSONA
+    // (Consulta distinta y más liviana que las anteriores: solo trae
+    // id_empleado/id_persona, sin JOIN a roles, por eso no usa mapearEmpleado)
     public Empleado obtenerPorIdPersona(int idPersona) {
 
         Empleado empleado = null;
@@ -186,7 +144,6 @@ public class EmpleadoDAO {
                     empleado = new Empleado();
                     empleado.setIdEmpleado(rs.getInt("id_empleado"));
 
-                    // 🔥 PERSONA
                     Persona p = new Persona();
                     p.setIdPersona(rs.getInt("id_persona"));
 

@@ -1,8 +1,6 @@
 package controllers;
 
-
 import claseslogicas.*;
-import claseslogicas.ExportadorReportes;
 import dao.FacturaDAO;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -11,6 +9,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.FileChooser;
+import utilidades.AlertaUtil;
 
 import java.io.File;
 import java.time.LocalDate;
@@ -45,7 +44,6 @@ public class ListadoFacturasController {
         colCliente.setCellValueFactory(data -> {
             Cliente c = data.getValue().getCliente();
             if (c == null) return new javafx.beans.property.SimpleStringProperty("");
-            // ✅ getNombre() y getApellido() son heredados de Persona
             return new javafx.beans.property.SimpleStringProperty(
                     c.getNombre() + " " + c.getApellido());
         });
@@ -53,7 +51,6 @@ public class ListadoFacturasController {
         colTotal.setCellValueFactory(new PropertyValueFactory<>("montoTotal"));
         colEstado.setCellValueFactory(new PropertyValueFactory<>("estadoFacturaNombre"));
 
-        // Fechas por defecto: último mes
         dpDesde.setValue(LocalDate.now().minusMonths(1));
         dpHasta.setValue(LocalDate.now());
 
@@ -71,20 +68,11 @@ public class ListadoFacturasController {
         LocalDate hasta = dpHasta.getValue();
 
         if (desde == null || hasta == null || desde.isAfter(hasta)) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Rango inválido", "Seleccioná un rango de fechas válido.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Rango inválido", null, "Seleccioná un rango de fechas válido.");
             return;
         }
 
         List<Factura> resultado = FacturaDAO.obtenerPorRango(desde, hasta);
-
-        // LOG TEMPORAL
-        for (Factura f : resultado) {
-            Cliente c = f.getCliente();
-            System.out.println("Factura " + f.getIdFactura() +
-                    " | cliente null: " + (c == null) +
-                    " | nombre: " + (c != null ? c.getNombre() : "N/A") +
-                    " | apellido: " + (c != null ? c.getApellido() : "N/A"));
-        }
 
         todasLasFacturas.setAll(resultado);
         facturasFiltradas = new FilteredList<>(todasLasFacturas, f -> true);
@@ -127,16 +115,8 @@ public class ListadoFacturasController {
         File destino = chooser.showSaveDialog(tblFacturas.getScene().getWindow());
         if (destino != null) {
             ExportadorReportes.exportarFacturaIndividualPDF(seleccionada, destino);
-            mostrarAlerta(Alert.AlertType.INFORMATION, "PDF generado",
+            AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "PDF generado", null,
                     "Factura guardada en: " + destino.getAbsolutePath());
         }
-    }
-
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
-        Alert alert = new Alert(tipo);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
     }
 }

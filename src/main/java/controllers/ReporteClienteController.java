@@ -1,8 +1,6 @@
 package controllers;
 
-import claseslogicas.ExportadorExcel;
-import claseslogicas.ExportadorReportes;
-import clasesreportes.ClienteReporteExtendido;
+import claseslogicas.ClienteReporteExtendido;
 import dao.ReporteDAO;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -16,12 +14,17 @@ import javafx.scene.control.*;
 import javafx.scene.image.WritableImage;
 import javafx.stage.FileChooser;
 import javafx.event.ActionEvent;
+import utilidades.AlertaUtil;
 
 import java.io.File;
 import java.sql.SQLException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import claseslogicas.ExportadorReporte;
+import claseslogicas.ExportadorExcel;
+import claseslogicas.ExportadorPDF;
 
 public class ReporteClienteController {
 
@@ -50,7 +53,8 @@ public class ReporteClienteController {
         colTelefono.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getTelefono()));
         colEmail.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getEmail()));
         colVisitas.setCellValueFactory(data -> new SimpleIntegerProperty(data.getValue().getCantidadVisitas()).asObject());
-        colGasto.setCellValueFactory(data -> new SimpleDoubleProperty(data.getValue().getGastoTotal()).asObject());
+        colGasto.setCellValueFactory(data -> new SimpleDoubleProperty(
+                data.getValue().getGastoTotal().doubleValue()).asObject()); // ✅ BigDecimal → double
         colEstadoTurno.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getEstadoUltimoTurno()));
     }
 
@@ -66,7 +70,7 @@ public class ReporteClienteController {
             tablaClientes.setItems(FXCollections.observableArrayList(datosClientes));
             actualizarVisualizacion();
         } catch (SQLException e) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error al cargar datos", "No se pudieron obtener los datos de clientes.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error al cargar datos", null, "No se pudieron obtener los datos de clientes.");
             System.err.println("🧨 Error SQL: " + e.getMessage());
         }
     }
@@ -90,22 +94,28 @@ public class ReporteClienteController {
         tablaClientes.setItems(FXCollections.observableArrayList(filtrados));
         actualizarGrafico(filtrados);
     }
-
     private void actualizarGrafico(List<ClienteReporteExtendido> clientes) {
         graficoClientes.getData().clear();
         XYChart.Series<String, Number> serie = new XYChart.Series<>();
         serie.setName("Gasto total por cliente");
 
         for (ClienteReporteExtendido c : clientes) {
-            serie.getData().add(new XYChart.Data<>(c.getNombreCompleto(), c.getGastoTotal()));
+            // ✅ BigDecimal → doubleValue() para que el gráfico lo interprete como Number
+            double gasto = c.getGastoTotal() != null
+                    ? c.getGastoTotal().setScale(2, java.math.RoundingMode.HALF_UP).doubleValue()
+                    : 0.0;
+
+            serie.getData().add(new XYChart.Data<>(c.getNombreCompleto(), gasto));
         }
 
         graficoClientes.getData().add(serie);
     }
+
+
     @FXML
     private void exportarPDF(ActionEvent event) {
         if (tablaClientes.getItems().isEmpty()) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Sin datos", "No hay clientes para exportar.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Sin datos", null, "No hay clientes para exportar.");
             return;
         }
 
@@ -115,18 +125,21 @@ public class ReporteClienteController {
         File archivo = fileChooser.showSaveDialog(null);
 
         if (archivo != null) {
-            String tipoReporte = cbFiltro.getValue();
-            WritableImage imagenGrafico = graficoClientes.snapshot(new SnapshotParameters(), null);
-            ExportadorReportes.exportarClientesPDF(tablaClientes.getItems(), archivo, tipoReporte, imagenGrafico);
-            mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", "El reporte fue exportado correctamente.");
+            try {
+                ExportadorReporte exportador = new ExportadorPDF();
+                exportador.exportarClientes(tablaClientes.getItems(), archivo);
+                AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", null, "El reporte fue exportado correctamente a PDF.");
+            } catch (Exception e) {
+                AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de exportación", null, "Ocurrió un error al generar el archivo PDF.");
+                e.printStackTrace();
+            }
         }
     }
-
 
     @FXML
     private void exportarExcel(ActionEvent event) {
         if (tablaClientes.getItems().isEmpty()) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Sin datos", "No hay clientes para exportar.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Sin datos", null, "No hay clientes para exportar.");
             return;
         }
 
@@ -137,20 +150,13 @@ public class ReporteClienteController {
 
         if (archivo != null) {
             try {
-                ExportadorExcel.exportarClientesXLSX(tablaClientes.getItems(), archivo);
-                mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", "El reporte fue exportado correctamente a Excel.");
+                ExportadorReporte exportador = new ExportadorExcel();
+                exportador.exportarClientes(tablaClientes.getItems(), archivo);
+                AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", null, "El reporte fue exportado correctamente a Excel.");
             } catch (Exception e) {
-                mostrarAlerta(Alert.AlertType.ERROR, "Error de exportación", "Ocurrió un error al generar el archivo.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de exportación", null, "Ocurrió un error al generar el archivo Excel.");
                 e.printStackTrace();
             }
         }
-    }
-
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
-        Alert alert = new Alert(tipo);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
     }
 }

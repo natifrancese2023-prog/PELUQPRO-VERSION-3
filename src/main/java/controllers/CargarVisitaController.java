@@ -18,6 +18,9 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ResourceBundle;
+import utilidades.AlertaUtil;
+
+import static utilidades.AlertaUtil.mostrarAlerta;
 
 public class CargarVisitaController implements Initializable, ConsultaClienteController.ClienteDependiente {
 
@@ -50,7 +53,13 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
         estilistaLogueado = SesionManager.getInstance().getUsuarioLogueado();
 
         if (estilistaLogueado == null) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error de Sesión", "No hay un estilista logueado. Cierre e ingrese de nuevo.");
+            mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Error de Sesión",
+                    null,
+                    "No hay un estilista logueado. Cierre e ingrese de nuevo."
+            );
+
             btnGuardarVisita.setDisable(true);
             return;
         }
@@ -83,7 +92,14 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
             cmbTurnoCliente.setItems(FXCollections.observableArrayList(turnos));
             cmbTurnoCliente.getSelectionModel().selectFirst();
         } catch (SQLException e) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error de BD", "No se pudieron cargar los turnos del cliente.");
+            AlertaUtil.mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Error de BD",
+                    null,
+                    "No se pudieron cargar los turnos del cliente."
+            );
+
+
             e.printStackTrace();
         }
     }
@@ -94,7 +110,13 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
         String observaciones = txtObservacionesServicio.getText();
 
         if (servicio == null || servicio.isEmpty()) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Servicio Faltante", "Debe seleccionar un tipo de servicio.");
+            mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Servicio Faltante",
+                    null,
+                    "Debe seleccionar un tipo de servicio."
+            );
+
             return;
         }
 
@@ -114,23 +136,43 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
     @FXML
     private void handleGuardarVisita() {
         if (clienteActual == null || estilistaLogueado == null) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error de Datos", "Falta el cliente o el estilista logueado.");
+            AlertaUtil.mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Error de Datos",
+                    null,
+                    "Falta el cliente o el estilista logueado."
+            );
+
             return;
         }
 
         if (listaServicios.isEmpty()) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Sin Servicios", "Debe agregar al menos un servicio a la visita.");
+            AlertaUtil.mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Sin Servicios",
+                    null,
+                    "Debe agregar al menos un servicio a la visita."
+            );
+
+
             return;
         }
 
         Turno turnoSeleccionado = cmbTurnoCliente.getValue();
         if (turnoSeleccionado == null) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Turno no seleccionado", "Debe seleccionar un turno para registrar la visita.");
+            AlertaUtil.mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Turno no seleccionado",
+                    null,
+                    "Debe seleccionar un turno para registrar la visita."
+            );
+
+
             return;
         }
 
         if (turnoSeleccionado.getEstadoTurno() != EstadoTurno.CONFIRMADO) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Estado inválido", "El turno debe estar en estado 'Confirmado' para registrar la visita.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Estado inválido", null, "El turno debe estar en estado 'Confirmado' para registrar la visita.");
             return;
         }
 
@@ -139,7 +181,7 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
         try {
             turnoDAO.actualizarEstado(idTurno, EstadoTurno.FINALIZADO, "Visita registrada");
         } catch (SQLException e) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error al finalizar turno", "No se pudo actualizar el estado del turno.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error al finalizar turno", null,"No se pudo actualizar el estado del turno.");
             e.printStackTrace();
             return;
         }
@@ -149,10 +191,10 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
         boolean exito = visitaDAO.guardarNuevaVisita(clienteActual, listaServicios, idEstilista, idTurno);
 
         if (exito) {
-            mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Visita y servicios guardados correctamente.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", null,"Visita y servicios guardados correctamente.");
             cerrarVentana();
         } else {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error", "Ocurrió un error al guardar la visita.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null,"Ocurrió un error al guardar la visita.");
         }
     }
 
@@ -166,11 +208,4 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
         stage.close();
     }
 
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
-        Alert alert = new Alert(tipo);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
-    }
 }

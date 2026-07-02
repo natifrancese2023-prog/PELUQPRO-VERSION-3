@@ -59,9 +59,6 @@ public class TurnoDAO {
                 throw new SQLException("El cliente con ID " + turno.getIdCliente() + " no existe en la base.");
             }
 
-            System.out.println("DEBUG: ID de cliente recibido → " + turno.getIdCliente());
-            System.out.println("DEBUG: ID de empleado recibido → " + turno.getIdEmpleado());
-            System.out.println("DEBUG: Fecha → " + turno.getFecha() + ", Inicio → " + turno.getHoraInicio() + ", Fin → " + turno.getHoraFin());
 
 
             PreparedStatement psTurno = conn.prepareStatement(sqlTurno, Statement.RETURN_GENERATED_KEYS);
@@ -78,7 +75,7 @@ public class TurnoDAO {
             ResultSet rsKeys = psTurno.getGeneratedKeys();
             if (rsKeys.next()) {
                 turno.setIdTurno(rsKeys.getInt(1));
-                System.out.println("DEBUG: ID de turno generado → " + turno.getIdTurno());
+
             } else {
                 throw new SQLException("Fallo al obtener ID del turno.");
             }
@@ -89,7 +86,7 @@ public class TurnoDAO {
             for (Servicio servicio : turno.getServicios()) {
                 psServicio.setInt(1, turno.getIdTurno());
                 psServicio.setInt(2, servicio.getIdTipoServicio());
-                System.out.println("DEBUG: Insertando en turno_servicios → turno=" + turno.getIdTurno() + ", servicio=" + servicio.getIdTipoServicio());
+
                 psServicio.addBatch();
             }
             psServicio.executeBatch();
@@ -122,10 +119,10 @@ public class TurnoDAO {
 
 
         HorarioAtencion horario = horarioDAO.obtenerHorarioPorDia(fecha);
-        System.out.println("DEBUG: Horario recuperado → " + (horario != null ? horario.getHoraApertura() + " a " + horario.getHoraCierre() : "null"));
+
 
         if (horario == null || horario.getHoraApertura().equals(horario.getHoraCierre())) {
-            System.out.println("DEBUG: Día sin horario válido o sin atención.");
+
             return disponibles;
         }
 
@@ -139,17 +136,16 @@ public class TurnoDAO {
         } else {
             estilistas = empleadoDAO.obtenerEstilistas();
         }
-        System.out.println("DEBUG: Estilistas encontrados → " + estilistas.size());
-        System.out.println("DEBUG: Generando bloques desde " + inicioDia + " hasta " + finDia);
+
 
         for (Empleado empleado : estilistas) {
             LocalTime horaActual = inicioDia;
 
             while (!horaActual.plusMinutes(duracionTotalMinutos).isAfter(finDia)) {
-                System.out.println("DEBUG: Evaluando bloque " + horaActual + " a " + horaActual.plusMinutes(duracionTotalMinutos) + " para estilista ID " + empleado.getIdEmpleado());
+
 
                 boolean disponible = validarDisponibilidad(empleado.getIdEmpleado(), fecha, horaActual, duracionTotalMinutos);
-                System.out.println("DEBUG: ¿Disponible? " + disponible);
+
 
                 if (disponible) {
                     BloqueDisponible bloque = new BloqueDisponible(
@@ -164,7 +160,7 @@ public class TurnoDAO {
             }
         }
 
-        System.out.println("DEBUG: Total de bloques disponibles generados → " + disponibles.size());
+
         return disponibles;
     }
     public List<Turno> obtenerTurnosPorCliente(int idCliente) throws SQLException {
@@ -174,7 +170,7 @@ public class TurnoDAO {
                 "t.observaciones, t.fecha_creacion, t.motivo_log, et.nombre_estado AS nombre_turno " +
                 "FROM turno t " +
                 "JOIN estado et ON t.id_estado = et.id_estado " +
-                "WHERE t.id_cliente = ? AND t.id_estado IN (1, 2) AND t.fecha >= CURDATE() " +
+                "WHERE t.id_cliente = ? AND t.id_estado IN (1, 2) AND t.fecha >= CURRENT_DATE " +
                 "ORDER BY t.fecha, t.hora_inicio";
 
         try (Connection conn = conexionBD.getConnection();
@@ -322,16 +318,45 @@ public class TurnoDAO {
             return ps.executeUpdate() > 0;
         }
     }
-
     public void actualizarEstadoTurno(Connection conn, int idTurno, int idEstado) throws SQLException {
+        // 1. Consultar estado actual
+        String sqlSelect = "SELECT id_estado FROM turno WHERE id_turno = ?";
+        int estadoActual = -1;
+        try (PreparedStatement psSel = conn.prepareStatement(sqlSelect)) {
+            psSel.setInt(1, idTurno);
+            try (ResultSet rs = psSel.executeQuery()) {
+                if (rs.next()) {
+                    estadoActual = rs.getInt("id_estado");
+                }
+            }
+        }
 
-        String sql = "UPDATE turno SET id_estado = ? WHERE id_turno = ?";
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, idEstado);
-            ps.setInt(2, idTurno);
-            ps.executeUpdate();
+        if (estadoActual == -1) {
+            throw new SQLException("Error: Turno no encontrado.");
+        }
+
+        // 2. Validar transición de estado
+        boolean transicionValida = false;
+        if (estadoActual == EstadoTurno.PENDIENTE.getId() || estadoActual == EstadoTurno.CONFIRMADO.getId()) {
+            transicionValida = true;
+        }
+        if (estadoActual == EstadoTurno.FINALIZADO.getId() && idEstado == EstadoTurno.FACTURADO.getId()) {
+            transicionValida = true;
+        }
+
+        if (!transicionValida) {
+            throw new SQLException("Error: No se puede cambiar el estado de un turno en estado " + estadoActual);
+        }
+
+        // 3. Actualizar si es válido
+        String sqlUpdate = "UPDATE turno SET id_estado = ? WHERE id_turno = ?";
+        try (PreparedStatement psUpd = conn.prepareStatement(sqlUpdate)) {
+            psUpd.setInt(1, idEstado);
+            psUpd.setInt(2, idTurno);
+            psUpd.executeUpdate();
         }
     }
+
     public boolean clienteExiste(int idCliente) throws SQLException {
         String sql = "SELECT 1 FROM cliente WHERE id_cliente = ?";
         try (Connection conn = conexionBD.getConnection();

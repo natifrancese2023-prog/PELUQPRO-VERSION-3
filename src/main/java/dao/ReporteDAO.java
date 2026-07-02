@@ -1,6 +1,6 @@
 package dao;
 
-import clasesreportes.ClienteReporteExtendido;
+import claseslogicas.ClienteReporteExtendido;
 import dao.ConexionBD;
 
 import java.sql.*;
@@ -12,29 +12,46 @@ public class ReporteDAO {
 
     public List<ClienteReporteExtendido> obtenerDatosClientesExtendido() throws SQLException {
         List<ClienteReporteExtendido> lista = new ArrayList<>();
+
         String sql = """
-    SELECT 
+    SELECT
         p.id_persona,
         CONCAT(p.nombre, ' ', p.apellido) AS nombre_completo,
         p.telefono,
         p.email,
         CONCAT(p.calle, ' ', p.numero) AS direccion,
         c.fecha_alta,
-        COUNT(DISTINCT v.id_visita) AS cantidad_visitas,
-        COALESCE(SUM(f.total), 0) AS gasto_total,
-        MAX(et.nombre_estado) AS estado_ultimo_turno,
-        STRING_AGG(rs.nombre_usuario, ', ') AS red_social
+        COALESCE(v.cantidad_visitas, 0) AS cantidad_visitas,
+        COALESCE(f.gasto_total, 0) AS gasto_total,
+        ut.nombre_estado AS estado_ultimo_turno,
+        rs.red_social
     FROM persona p
     JOIN cliente c ON p.id_persona = c.id_persona
-    LEFT JOIN visita v ON c.id_cliente = v.id_cliente
-    LEFT JOIN factura f ON c.id_cliente = f.id_cliente
-    LEFT JOIN turno t ON c.id_cliente = t.id_cliente
-    LEFT JOIN estado et ON t.id_estado = et.id_estado
-    LEFT JOIN red_social rs ON c.id_cliente = rs.id_cliente
-    GROUP BY p.id_persona, c.fecha_alta
+    LEFT JOIN (
+        SELECT id_cliente, COUNT(*) AS cantidad_visitas
+        FROM visita
+        GROUP BY id_cliente
+    ) v ON v.id_cliente = c.id_cliente
+    LEFT JOIN (
+        SELECT id_cliente, SUM(total) AS gasto_total
+        FROM factura
+        GROUP BY id_cliente
+    ) f ON f.id_cliente = c.id_cliente
+    LEFT JOIN (
+        SELECT id_cliente, STRING_AGG(nombre_usuario, ', ') AS red_social
+        FROM red_social
+        GROUP BY id_cliente
+    ) rs ON rs.id_cliente = c.id_cliente
+    LEFT JOIN LATERAL (
+        SELECT et.nombre_estado
+        FROM turno t
+        JOIN estado et ON et.id_estado = t.id_estado
+        WHERE t.id_cliente = c.id_cliente
+        ORDER BY t.fecha DESC, t.hora_inicio DESC
+        LIMIT 1
+    ) ut ON true
     ORDER BY gasto_total DESC
 """;
-
 
         try (Connection conn = ConexionBD.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -53,10 +70,11 @@ public class ReporteDAO {
                         rs.getString("direccion"),
                         fechaAlta,
                         rs.getInt("cantidad_visitas"),
-                        rs.getDouble("gasto_total"),
+                        rs.getBigDecimal("gasto_total"),   // ✅ BigDecimal
                         rs.getString("estado_ultimo_turno"),
                         rs.getString("red_social")
                 );
+
                 lista.add(cliente);
             }
         }

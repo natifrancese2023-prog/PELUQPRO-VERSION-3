@@ -14,13 +14,9 @@ public class FacturaDAO {
             "INSERT INTO factura (id_cliente, id_turno, fecha_hora, id_metodo, total, id_estado_factura) VALUES (?, ?, ?, ?, ?, ?)";
 
     private static final String INSERT_DETALLE =
-            "INSERT INTO detalle_factura (id_factura, id_servicio, descripcion_servicio, precio_unitario, cantidad) VALUES (?, ?, ?, ?, ?)";
-
+            "INSERT INTO detalle_factura (id_factura, id_servicio, descripcion_servicio, precio_unitario, cantidad, subtotal) VALUES (?, ?, ?, ?, ?, ?)";
     private TurnoDAO turnoDAO = new TurnoDAO();
 
-    // =====================================================================
-    // GUARDAR FACTURA (con transacción)
-    // =====================================================================
     public void guardarFactura(Factura factura, int idTurno, int idMetodoPago) throws SQLException {
         Connection conn = null;
         try {
@@ -38,7 +34,8 @@ public class FacturaDAO {
                 throw new SQLException("No se pudo insertar el detalle de la factura.");
             }
 
-            turnoDAO.actualizarEstadoTurno(conn, idTurno, 3);
+
+            turnoDAO.actualizarEstadoTurno(conn, idTurno, EstadoTurno.FACTURADO.getId());
 
             conn.commit();
             factura.setIdFactura(idFactura);
@@ -51,9 +48,6 @@ public class FacturaDAO {
         }
     }
 
-    // =====================================================================
-    // OBTENER POR TURNO
-    // =====================================================================
     public Factura obtenerPorTurno(int idTurno) throws SQLException {
         String sql = "SELECT f.*, mp.nombre_metodo, mp.porcentaje_modificador, ef.nombre AS nombre_estado " +
                 "FROM factura f " +
@@ -72,7 +66,7 @@ public class FacturaDAO {
                 factura.setIdFactura(rs.getInt("id_factura"));
                 factura.setIdTurno(rs.getInt("id_turno"));
                 factura.setIdCliente(rs.getInt("id_cliente"));
-                factura.setMontoTotal(rs.getBigDecimal("total").doubleValue());
+                factura.setMontoTotal(rs.getBigDecimal("total"));   // ✅ BigDecimal
                 factura.setMetodoPago(rs.getString("nombre_metodo"));
 
                 int idEstado = rs.getInt("id_estado_factura");
@@ -85,10 +79,6 @@ public class FacturaDAO {
         }
         return null;
     }
-
-    // =====================================================================
-    // OBTENER TODAS
-    // =====================================================================
     public static List<Factura> obtenerTodas() {
         Map<Integer, Factura> mapaFacturas = new LinkedHashMap<>();
         String sql = "SELECT f.id_factura, f.id_turno, f.fecha_hora, f.total, " +
@@ -121,7 +111,7 @@ public class FacturaDAO {
                     factura.setIdFactura(idFactura);
                     factura.setIdTurno(rs.getInt("id_turno"));
                     factura.setFechaHora(rs.getTimestamp("fecha_hora").toLocalDateTime());
-                    factura.setMontoTotal(rs.getBigDecimal("total").doubleValue());
+                    factura.setMontoTotal(BigDecimal.valueOf(rs.getBigDecimal("total").doubleValue()));
                     factura.setMetodoPago(rs.getString("metodo_pago"));
                     factura.setEstadoFacturaNombre(rs.getString("estado_factura"));
 
@@ -202,7 +192,7 @@ public class FacturaDAO {
                         factura.setIdFactura(idFactura);
                         factura.setIdTurno(rs.getInt("id_turno"));
                         factura.setFechaHora(rs.getTimestamp("fecha_hora").toLocalDateTime());
-                        factura.setMontoTotal(rs.getBigDecimal("total").doubleValue());
+                        factura.setMontoTotal(BigDecimal.valueOf(rs.getBigDecimal("total").doubleValue()));
                         factura.setMetodoPago(rs.getString("metodo_pago"));
                         factura.setEstadoFacturaNombre(rs.getString("estado_factura"));
 
@@ -235,17 +225,13 @@ public class FacturaDAO {
         }
         return new ArrayList<>(mapaFacturas.values());
     }
-
-    // =====================================================================
-    // MÉTODOS PRIVADOS
-    // =====================================================================
     private int insertarCabecera(Connection conn, Factura factura, int idTurno, int idMetodoPago) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(INSERT_FACTURA, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, factura.getIdCliente());
             ps.setInt(2, idTurno);
             ps.setTimestamp(3, Timestamp.valueOf(factura.getFechaHora()));
             ps.setInt(4, idMetodoPago);
-            ps.setDouble(5, factura.getMontoTotal());
+            ps.setBigDecimal(5, factura.getMontoTotal());   // ✅ BigDecimal
             ps.setInt(6, factura.getEstadoFactura().getIdEstadoFactura());
 
             if (ps.executeUpdate() > 0) {
@@ -270,8 +256,12 @@ public class FacturaDAO {
                         : "Sin descripción";
                 ps.setString(3, descripcion);
 
-                ps.setDouble(4, servicio.getPrecio());
+                BigDecimal precioUnitario = BigDecimal.valueOf(servicio.getPrecio());
+                ps.setBigDecimal(4, precioUnitario);
                 ps.setInt(5, 1);
+
+                BigDecimal subtotal = precioUnitario.multiply(BigDecimal.valueOf(1));
+                ps.setBigDecimal(6, subtotal);
 
                 ps.addBatch();
             }
@@ -279,5 +269,4 @@ public class FacturaDAO {
             int[] resultados = ps.executeBatch();
             return resultados.length > 0;
         }
-    }
-}
+    }}

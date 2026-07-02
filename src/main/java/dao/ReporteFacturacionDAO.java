@@ -6,15 +6,13 @@ import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
-import dao.ConexionBD;
+import java.math.BigDecimal;
 
 public class ReporteFacturacionDAO {
     private final ConexionBD conexionBD = new ConexionBD();
 
-
-    public Map<LocalDate, Double> obtenerFacturacionPorDia(LocalDate inicio, LocalDate fin) {
-        Map<LocalDate, Double> resultados = new LinkedHashMap<>();
+    public Map<LocalDate, BigDecimal> obtenerFacturacionPorDia(LocalDate inicio, LocalDate fin) {
+        Map<LocalDate, BigDecimal> resultados = new LinkedHashMap<>();
         String sql = "SELECT DATE(fecha_hora) AS fecha, SUM(total) AS total_facturado " +
                 "FROM factura " +
                 "WHERE fecha_hora >= ? AND fecha_hora < ? " +
@@ -31,8 +29,8 @@ public class ReporteFacturacionDAO {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 LocalDate fecha = rs.getDate("fecha").toLocalDate();
-                double total = rs.getDouble("total_facturado");
-                resultados.put(fecha, total);
+                BigDecimal total = rs.getBigDecimal("total_facturado");
+                resultados.put(fecha, total != null ? total : BigDecimal.ZERO);
             }
 
         } catch (Exception e) {
@@ -70,7 +68,4 @@ public class ReporteFacturacionDAO {
 
         return resultados;
     }
-
-
 }
-

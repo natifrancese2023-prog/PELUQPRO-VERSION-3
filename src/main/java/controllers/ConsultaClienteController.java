@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.sql.SQLException;
 import java.util.ResourceBundle;
+import utilidades.AlertaUtil;
 
 public class ConsultaClienteController implements Initializable {
 
@@ -51,7 +52,7 @@ public class ConsultaClienteController implements Initializable {
         try {
             cmbTipoDocumento.setItems(FXCollections.observableArrayList(clienteDAO.obtenerTiposDocumento()));
         } catch (SQLException e) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error de Conexión", "No se pudieron cargar los tipos de documento.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de Conexión", null,"No se pudieron cargar los tipos de documento.");
         }
 
         setCamposBloqueados(true);
@@ -77,7 +78,7 @@ public class ConsultaClienteController implements Initializable {
         String numDoc = txtNumeroDocumento.getText().trim();
 
         if (tipoDoc == null || tipoDoc.isEmpty() || numDoc.isEmpty()) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Búsqueda Incompleta", "Debe seleccionar un Tipo y Número de Documento.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Búsqueda Incompleta", null,"Debe seleccionar un Tipo y Número de Documento.");
             return;
         }
 
@@ -89,16 +90,16 @@ public class ConsultaClienteController implements Initializable {
             clienteActual = clienteDAO.consultarPorDocumentoCompleto(tipoDoc, numDoc);
 
             if (clienteActual != null) {
-                mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Cliente encontrado.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", null,"Cliente encontrado.");
                 rellenarCampos(clienteActual);
                 setCamposBloqueados(false);
                 setBotonesAccionHabilitados(true);
             } else {
-                mostrarAlerta(Alert.AlertType.WARNING, "Sin Resultados", "No se encontró ningún cliente con ese documento.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Sin Resultados", null,"No se encontró ningún cliente con ese documento.");
                 setCamposBloqueados(true);
             }
         } catch (SQLException e) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error de Base de Datos", "Ocurrió un error al consultar la base de datos.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de Base de Datos", null,"Ocurrió un error al consultar la base de datos.");
             e.printStackTrace();
             setCamposBloqueados(true);
         }
@@ -107,7 +108,7 @@ public class ConsultaClienteController implements Initializable {
     @FXML
     private void handleVerHistorial() {
         if (clienteActual == null) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Sin Cliente", "Primero debe buscar un cliente para ver su historial.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Sin Cliente", null,"Primero debe buscar un cliente para ver su historial.");
             return;
         }
 
@@ -117,7 +118,7 @@ public class ConsultaClienteController implements Initializable {
     @FXML
     private void handleCargarVisita() {
         if (clienteActual == null) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Sin Cliente", "Primero debe buscar un cliente para cargar una visita.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Sin Cliente", null,"Primero debe buscar un cliente para cargar una visita.");
             return;
         }
 
@@ -140,7 +141,7 @@ public class ConsultaClienteController implements Initializable {
             stage.show();
 
         } catch (IOException e) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error de Carga", "No se pudo abrir el submódulo.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de Carga", null, "No se pudo abrir el submódulo.");
             e.printStackTrace();
         }
     }
@@ -166,7 +167,7 @@ public class ConsultaClienteController implements Initializable {
             cmbTipoRedSocial.setItems(FXCollections.observableArrayList(clienteDAO.obtenerTiposRedSocial()));
         }
         catch (SQLException e) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Error de Carga", "No se pudieron cargar los datos de ubicación del cliente.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de Carga", null,"No se pudieron cargar los datos de ubicación del cliente.");
             e.printStackTrace();
         }
 
@@ -206,13 +207,6 @@ public class ConsultaClienteController implements Initializable {
         btnCargarVisita.setDisable(!habilitado);
     }
 
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
-        Alert alert = new Alert(tipo);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
-    }
 
 
     public interface ClienteDependiente {

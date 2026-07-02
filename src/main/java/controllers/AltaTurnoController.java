@@ -4,8 +4,7 @@ import claseslogicas.*;
 import dao.*;
 import java.net.URL;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -18,6 +17,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
+import utilidades.AlertaUtil;
 
 public class AltaTurnoController implements Initializable {
 
@@ -94,7 +94,13 @@ public class AltaTurnoController implements Initializable {
                 cbTipoDocumento.getSelectionModel().select(0);
             }
         } catch (SQLException e) {
-            mostrarAlerta(AlertType.ERROR, "Error de BD", "No se pudieron cargar los tipos de documento: " + e.getMessage());
+            AlertaUtil.mostrarAlerta(
+                    AlertType.ERROR,
+                    "Error de BD",
+                    null,
+                    "No se pudieron cargar los tipos de documento: " + e.getMessage()
+            );
+
         }
     }
 
@@ -104,7 +110,13 @@ public class AltaTurnoController implements Initializable {
         String numDoc = txtDocumento.getText().trim();
 
         if (tipoDoc == null || numDoc.isEmpty()) {
-            mostrarAlerta(AlertType.WARNING, "Advertencia", "Debe seleccionar un tipo y número de documento.");
+            AlertaUtil.mostrarAlerta(
+                    AlertType.WARNING,
+                    "Advertencia",
+                    null,
+                    "Debe seleccionar un tipo y número de documento."
+            );
+
             return;
         }
 
@@ -120,7 +132,13 @@ public class AltaTurnoController implements Initializable {
                 clienteActual = null;
             }
         } catch (SQLException e) {
-            mostrarAlerta(AlertType.ERROR, "Error de BD", "Error al buscar cliente: " + e.getMessage());
+            AlertaUtil.mostrarAlerta(
+                    AlertType.ERROR,
+                    "Error de BD",
+                    null,
+                    "Error al buscar cliente: " + e.getMessage()
+            );
+
         }
     }
 
@@ -142,7 +160,13 @@ public class AltaTurnoController implements Initializable {
                 }
             });
         } catch (SQLException e) {
-            mostrarAlerta(AlertType.ERROR, "Error de BD", "No se pudieron cargar los servicios: " + e.getMessage());
+            AlertaUtil.mostrarAlerta(
+                    AlertType.ERROR,
+                    "Error de BD",
+                    null,
+                    "No se pudieron cargar los servicios: " + e.getMessage()
+            );
+
         }
     }
 
@@ -178,7 +202,13 @@ public class AltaTurnoController implements Initializable {
 
             if (estilistas.isEmpty()) {
                 System.out.println("⚠️ No se encontraron estilistas en la base de datos.");
-                mostrarAlerta(Alert.AlertType.WARNING, "Sin estilistas", "No hay estilistas registrados.");
+                AlertaUtil.mostrarAlerta(
+                        Alert.AlertType.WARNING,
+                        "Sin estilistas",
+                        null,
+                        "No hay estilistas registrados."
+                );
+
             } else {
                 cbEstilista.setItems(FXCollections.observableArrayList(estilistas));
                 System.out.println("✅ ComboBox cargado con estilistas.");
@@ -186,7 +216,13 @@ public class AltaTurnoController implements Initializable {
 
         } catch (SQLException e) {
             e.printStackTrace(); // ✅ muestra el error completo
-            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudo cargar los estilistas: " + e.getMessage());
+            AlertaUtil.mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Error",
+                    null,
+                    "No se pudo cargar los estilistas: " + e.getMessage()
+            );
+
         }
     }
 
@@ -198,7 +234,13 @@ public class AltaTurnoController implements Initializable {
         if (clienteActual == null || duracionTotalMinutos <= 0 || dpFecha.getValue() == null) {
             lvTurnosDisponibles.getItems().clear();
             if (event != null) {
-                mostrarAlerta(AlertType.WARNING, "Advertencia", "Debe completar Cliente, Servicios y Fecha.");
+                AlertaUtil.mostrarAlerta(
+                        AlertType.WARNING,
+                        "Advertencia",
+                        null,
+                        "Debe completar Cliente, Servicios y Fecha."
+                );
+
             }
             return;
         }
@@ -208,7 +250,13 @@ public class AltaTurnoController implements Initializable {
 
         // ✅ Validación para evitar NullPointerException
         if (estilistaSeleccionado == null) {
-            mostrarAlerta(AlertType.WARNING, "Estilista no seleccionado", "Debe seleccionar un estilista antes de buscar disponibilidad.");
+            AlertaUtil.mostrarAlerta(
+                    AlertType.WARNING,
+                    "Estilista no seleccionado",
+                    null,
+                    "Debe seleccionar un estilista antes de buscar disponibilidad."
+            );
+
             return;
         }
 
@@ -230,11 +278,23 @@ public class AltaTurnoController implements Initializable {
             });
 
             if (disponibles.isEmpty()) {
-                mostrarAlerta(AlertType.INFORMATION, "Información", "No se encontraron turnos disponibles con esos criterios.");
+                AlertaUtil.mostrarAlerta(
+                        AlertType.INFORMATION,
+                        "Información",
+                        null,
+                        "No se encontraron turnos disponibles con esos criterios."
+                );
+
             }
 
         } catch (SQLException e) {
-            mostrarAlerta(AlertType.ERROR, "Error de BD", "Error al buscar disponibilidad: " + e.getMessage());
+            AlertaUtil.mostrarAlerta(
+                    AlertType.ERROR,
+                    "Error de BD",
+                    null,
+                    "Error al buscar disponibilidad: " + e.getMessage()
+            );
+
         }
     }
 
@@ -246,8 +306,15 @@ public class AltaTurnoController implements Initializable {
 
     @FXML
     private void handleAgendarTurno(ActionEvent event) {
-        if (bloqueSeleccionado == null || clienteActual == null || serviciosSeleccionados.isEmpty()) {
-            mostrarAlerta(AlertType.ERROR, "Error", "Debe seleccionar un cliente, servicios y un turno disponible.");
+        if (bloqueSeleccionado == null || clienteActual == null || serviciosSeleccionados.isEmpty())
+        {
+            AlertaUtil.mostrarAlerta(
+                    AlertType.ERROR,
+                    "Error",
+                    null,
+                    "Debe seleccionar un cliente, servicios y un turno disponible."
+            );
+
             return;
         }
 
@@ -272,11 +339,24 @@ public class AltaTurnoController implements Initializable {
             boolean exito = turnoDAO.insertarTurno(nuevoTurno);
 
             if (exito) {
-                mostrarAlerta(AlertType.INFORMATION, "Éxito", "Turno agendado exitosamente para " + clienteActual.getNombreCompleto() + ".");
+                AlertaUtil.mostrarAlerta(
+                        AlertType.INFORMATION,
+                        "Éxito",
+                        null,
+                        "Turno agendado exitosamente para " + clienteActual.getNombreCompleto() + "."
+                );
+
+
                 limpiarFormulario();
             }
         } catch (SQLException e) {
-            mostrarAlerta(AlertType.ERROR, "Error de Agenda", "Fallo al agendar el turno. Detalle: " + e.getMessage());
+            AlertaUtil.mostrarAlerta(
+                    AlertType.ERROR,
+                    "Error de Agenda",
+                    null,
+                    "Fallo al agendar el turno. Detalle: " + e.getMessage()
+            );
+
         }
     }
 
@@ -303,11 +383,4 @@ public class AltaTurnoController implements Initializable {
         btnAgendar.setDisable(true);
     }
 
-    private void mostrarAlerta(AlertType type, String titulo, String mensaje) {
-        Alert alert = new Alert(type);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
-    }
 }

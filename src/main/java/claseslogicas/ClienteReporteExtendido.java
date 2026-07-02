@@ -1,5 +1,6 @@
-package clasesreportes;
+package claseslogicas;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class ClienteReporteExtendido {
@@ -10,13 +11,13 @@ public class ClienteReporteExtendido {
     private String direccion;
     private LocalDate fechaAlta;
     private int cantidadVisitas;
-    private double gastoTotal;
+    private BigDecimal gastoTotal;   // ✅ ahora BigDecimal
     private String estadoUltimoTurno;
     private String redesSociales;
 
     public ClienteReporteExtendido(int idPersona, String nombreCompleto, String telefono, String email,
                                    String direccion, LocalDate fechaAlta, int cantidadVisitas,
-                                   double gastoTotal, String estadoUltimoTurno, String redesSociales) {
+                                   BigDecimal gastoTotal, String estadoUltimoTurno, String redesSociales) {
         this.idPersona = idPersona;
         this.nombreCompleto = nombreCompleto;
         this.telefono = telefono;
@@ -24,19 +25,21 @@ public class ClienteReporteExtendido {
         this.direccion = direccion;
         this.fechaAlta = fechaAlta;
         this.cantidadVisitas = cantidadVisitas;
-        this.gastoTotal = gastoTotal;
+        this.gastoTotal = gastoTotal != null ? gastoTotal : BigDecimal.ZERO;
         this.estadoUltimoTurno = estadoUltimoTurno;
         this.redesSociales = redesSociales;
     }
 
     // Getters
 
+    public int getIdPersona() { return idPersona; }
     public String getNombreCompleto() { return nombreCompleto; }
     public String getTelefono() { return telefono; }
     public String getEmail() { return email; }
-
+    public String getDireccion() { return direccion; }
+    public LocalDate getFechaAlta() { return fechaAlta; }
     public int getCantidadVisitas() { return cantidadVisitas; }
-    public double getGastoTotal() { return gastoTotal; }
+    public BigDecimal getGastoTotal() { return gastoTotal; }   // ✅ devuelve BigDecimal
     public String getEstadoUltimoTurno() { return estadoUltimoTurno; }
-
+    public String getRedesSociales() { return redesSociales; }
 }

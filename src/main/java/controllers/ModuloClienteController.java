@@ -9,6 +9,8 @@ import javafx.scene.control.Button;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.Parent;
 import javafx.stage.Stage;
+import javafx.scene.control.Alert.AlertType;
+import utilidades.AlertaUtil;
 
 public class ModuloClienteController {
 
@@ -19,7 +21,7 @@ public class ModuloClienteController {
 
     public void setStage(Stage stage) {
         if (stage == null) {
-            System.err.println("❌ ERROR: Stage recibido es null.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error", null, "El Stage recibido es null.");
             return;
         }
         this.stage = stage;
@@ -31,7 +33,7 @@ public class ModuloClienteController {
             this.stage.close();
             System.out.println("✅ Módulo Cliente cerrado. Volviendo al Panel Principal.");
         } else {
-            System.err.println("❌ ERROR: El Stage no fue inyectado en ModuloClienteController.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error", null, "El Stage no fue inyectado en ModuloClienteController.");
         }
     }
 
@@ -41,14 +43,14 @@ public class ModuloClienteController {
         String fxmlPath = (String) sourceButton.getUserData();
 
         if (fxmlPath == null || fxmlPath.isEmpty()) {
-            System.err.println("❌ ERROR: El botón no tiene userData configurado.");
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error", null, "El botón no tiene userData configurado.");
             return;
         }
 
         URL location = getClass().getResource(fxmlPath);
 
         if (location == null) {
-            System.err.println("❌ ERROR: No se encontró el recurso FXML en la ruta: " + fxmlPath);
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error", null, "No se encontró el recurso FXML en la ruta: " + fxmlPath);
             return;
         }
 
@@ -67,10 +69,8 @@ public class ModuloClienteController {
             System.out.println("✅ Submódulo cargado: " + fxmlPath);
 
         } catch (IOException e) {
-            System.err.println("❌ ERROR FATAL al cargar el FXML: " + fxmlPath);
-            System.err.println("Causa: " + e.getMessage());
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error Fatal", null, "No se pudo cargar el FXML: " + fxmlPath);
             e.printStackTrace();
         }
     }
-
 }

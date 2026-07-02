@@ -10,9 +10,10 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
+import utilidades.SesionManager;
+import utilidades.AlertaUtil;
 
 import java.io.IOException;
-import utilidades.SesionManager; // 🏆 Importación del SesionManager
 
 public class LoginController {
 
@@ -35,7 +36,7 @@ public class LoginController {
         String contraseña = txtPassword.getText().trim();
 
         if (usuario.isEmpty() || contraseña.isEmpty()) {
-            mostrarAlerta("Campos vacíos", "Por favor, ingrese usuario y contraseña.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Campos vacíos", null, "Por favor, ingrese usuario y contraseña.");
             return;
         }
 
@@ -45,7 +46,7 @@ public class LoginController {
             // 🏆 1. INICIAR SESIÓN GLOBALMENTE
             SesionManager.getInstance().iniciarSesion(user);
 
-            mostrarAlerta("Bienvenido", "Acceso concedido. Rol: " + user.getRol());
+            AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Bienvenido", null, "Acceso concedido. Rol: " + user.getRol());
 
             // 2. Cargar la página principal
             cargarPanelPrincipal(user);
@@ -55,31 +56,18 @@ public class LoginController {
         } else {
             System.out.println("Usuario ingresado: '" + usuario + "'");
             System.out.println("Contraseña ingresada: '" + contraseña + "'");
-            mostrarAlerta("Error de acceso", "Usuario o contraseña incorrectos.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de acceso", null, "Usuario o contraseña incorrectos.");
         }
-    }
-
-    private void mostrarAlerta(String titulo, String mensaje) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
     }
 
     private void cargarPanelPrincipal(Usuario user) {
         try {
-            // Cuidado con la ruta. Debe ser relativa al classpath.
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/panelPrincipal.fxml"));
             Parent root = loader.load();
 
-            // Obtener el controlador del Panel Principal.
             PanelPrincipalController panelController = loader.getController();
-
-            // Llamamos al método para pasar el Usuario (necesario para la gestión de permisos)
             panelController.inicializar(user);
 
-            // Crear y mostrar la nueva ventana (Stage).
             Stage stage = new Stage();
             stage.setTitle("PeluqPro - Panel Principal");
             stage.setScene(new Scene(root));
@@ -88,7 +76,7 @@ public class LoginController {
         } catch (IOException e) {
             System.err.println("Error al cargar el Panel Principal. Revisa la ruta.");
             e.printStackTrace();
-            mostrarAlerta("Error de Carga", "No se pudo iniciar la aplicación principal.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de Carga", null, "No se pudo iniciar la aplicación principal.");
         }
     }
 
@@ -96,7 +84,6 @@ public class LoginController {
         btnIngresar.getScene().getWindow().hide();
     }
 
-    // Estos métodos son opcionales y a menudo no son necesarios en controladores:
     public Button getBtnIngresar() {
         return btnIngresar;
     }

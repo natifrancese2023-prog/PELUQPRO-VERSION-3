@@ -63,15 +63,7 @@ public class ClienteDAO {
                     "JOIN tipos_red_social trs ON rs.id_tipo_red_social = trs.id_tipo_red_social " +
                     "WHERE rs.id_cliente = ?";
 
-    private static final String SELECT_TODOS_CLIENTES_REPORTE =
-            "SELECT c.id_cliente, p.id_persona, p.nombre, p.apellido, d.numero_documento, td.tipo_documento, c.fecha_alta, COUNT(v.id_visita) AS numero_visitas " +
-                    "FROM cliente c " +
-                    "JOIN persona p ON c.id_persona = p.id_persona " +
-                    "JOIN documento d ON p.id_documento = d.id_documento " +
-                    "JOIN tipo_documento td ON d.id_tipo_documento = td.id_tipo_documento " +
-                    "LEFT JOIN visita v ON c.id_cliente = v.id_cliente " +
-                    "GROUP BY c.id_cliente, p.id_persona, p.nombre, p.apellido, d.numero_documento, td.tipo_documento, c.fecha_alta " +
-                    "ORDER BY p.apellido, p.nombre";
+
 
     private static final String UPDATE_PERSONA_SQL =
             "UPDATE persona SET nombre = ?, apellido = ?, telefono = ?, email = ?, calle = ?, numero = ?, id_barrio = ? WHERE id_persona = ?";
@@ -82,26 +74,17 @@ public class ClienteDAO {
     private static final String SELECT_RED_SOCIAL_EXISTENTE =
             "SELECT id_cliente FROM red_social WHERE id_cliente = ?";
 
-    private static final String DELETE_DETALLE_SERVICIOS_SQL =
-            "DELETE FROM detalle_servicio WHERE id_visita IN (SELECT id_visita FROM visita WHERE id_cliente = ?)";
-
-    private static final String DELETE_VISITA_SQL =
-            "DELETE FROM visita WHERE id_cliente = ?";
 
     private static final String DELETE_RED_SOCIAL_SQL =
             "DELETE FROM red_social WHERE id_cliente = ?";
+    private static final String SELECT_CLIENTE_EXISTENTE_POR_DOCUMENTO =
+            "SELECT c.id_cliente " +
+                    "FROM cliente c " +
+                    "JOIN persona p ON c.id_persona = p.id_persona " +
+                    "JOIN documento d ON p.id_documento = d.id_documento " +
+                    "WHERE d.numero_documento = ? AND d.id_tipo_documento = ?";
 
-    private static final String DELETE_CLIENTE_SQL =
-            "DELETE FROM cliente WHERE id_cliente = ?";
 
-    private static final String DELETE_PERSONA_SQL =
-            "DELETE FROM persona WHERE id_persona = ?";
-
-    private static final String SELECT_DOCUMENTO_ID_BY_PERSONA_ID =
-            "SELECT id_documento FROM persona WHERE id_persona = ?";
-
-    private static final String DELETE_DOCUMENTO_SQL =
-            "DELETE FROM documento WHERE id_documento = ?";
 
     private static final ConexionBD conexionBD = new ConexionBD();
 
@@ -118,6 +101,18 @@ public class ClienteDAO {
             if (idTipoDocumento == -1 || idBarrio == -1) {
                 conn.rollback();
                 throw new SQLException("Error: No se encontró Tipo Documento o Barrio.");
+            }
+
+            // PASO 0: Validar duplicidad de documento
+            try (PreparedStatement psCheck = conn.prepareStatement(SELECT_CLIENTE_EXISTENTE_POR_DOCUMENTO)) {
+                psCheck.setString(1, cliente.getNumeroDocumento());
+                psCheck.setInt(2, idTipoDocumento);
+                try (ResultSet rs = psCheck.executeQuery()) {
+                    if (rs.next()) {
+                        conn.rollback();
+                        throw new SQLException("Error: Ya existe un cliente con ese documento.");
+                    }
+                }
             }
 
             // PASO 1: Insertar Documento
@@ -152,7 +147,7 @@ public class ClienteDAO {
             }
             if (idPersona == -1) { conn.rollback(); return false; }
 
-            // PASO 3: Insertar Cliente y obtener ID generado
+            // PASO 3: Insertar Cliente
             int idCliente = -1;
             try (PreparedStatement psCli = conn.prepareStatement(INSERT_CLIENTE_SQL, Statement.RETURN_GENERATED_KEYS)) {
                 psCli.setInt(1, idPersona);
@@ -181,7 +176,7 @@ public class ClienteDAO {
                 try (PreparedStatement psRed = conn.prepareStatement(INSERT_RED_SOCIAL_SQL)) {
                     psRed.setString(1, rsCliente.getNombreUsuario());
                     psRed.setInt(2, idTipoRedSocial);
-                    psRed.setInt(3, idCliente); // ahora sí, ID correcto
+                    psRed.setInt(3, idCliente);
                     if (psRed.executeUpdate() == 0) {
                         conn.rollback();
                         return false;
@@ -253,7 +248,6 @@ public class ClienteDAO {
         }
         return cliente;
     }
-
     public Cliente consultarPorDocumentoCompleto(String tipoDocumento, String numeroDocumento) throws SQLException {
         Cliente cliente = null;
         Connection conn = null;
@@ -274,8 +268,9 @@ public class ClienteDAO {
             if (rs.next()) {
                 cliente = new Cliente();
                 int idPersona = rs.getInt("id_persona");
+                int idCliente = rs.getInt("id_cliente");
 
-                cliente.setIdCliente(rs.getInt("id_cliente"));
+                cliente.setIdCliente(idCliente);
                 cliente.setIdPersona(idPersona);
                 cliente.setNombre(rs.getString("nombre"));
                 cliente.setApellido(rs.getString("apellido"));
@@ -290,8 +285,8 @@ public class ClienteDAO {
                 cliente.setNombreBarrio(rs.getString("nombre_barrio"));
                 cliente.setFechaAlta(rs.getDate("fecha_alta"));
 
-
-                ClienteRedSocial redSocial = consultarRedSocialPorCliente(conn, idPersona);
+                // 🔑 Ajuste: usar idCliente en lugar de idPersona
+                ClienteRedSocial redSocial = consultarRedSocialPorCliente(conn, idCliente);
                 cliente.setRedSocial(redSocial);
             }
         } catch (SQLException e) {
@@ -309,6 +304,7 @@ public class ClienteDAO {
         }
         return cliente;
     }
+
     public static List<Cliente> obtenerTodos() {
         List<Cliente> lista = new ArrayList<>();
         String sql = "SELECT c.id_cliente, c.fecha_alta, p.id_persona, p.nombre AS cliente_nombre, " +
@@ -325,6 +321,7 @@ public class ClienteDAO {
                 "JOIN ciudad ci ON b.id_ciudad = ci.id_ciudad " +
                 "JOIN provincia pr ON ci.id_provincia = pr.id_provincia " +
                 "LEFT JOIN red_social rs ON c.id_cliente = rs.id_cliente " +
+                "WHERE c.activo = true " +   // 🔑 filtro de clientes activos
                 "ORDER BY c.id_cliente";
 
         try (Connection conn = ConexionBD.getConnection();
@@ -334,13 +331,8 @@ public class ClienteDAO {
             while (rs.next()) {
                 Cliente cliente = new Cliente();
                 cliente.setIdCliente(rs.getInt("id_cliente"));
+                cliente.setFechaAlta(rs.getDate("fecha_alta"));
 
-                // Manejo seguro de fecha_alta
-
-                Date fechaSql = rs.getDate("fecha_alta");
-                cliente.setFechaAlta(fechaSql);
-
-                // Persona
                 Persona persona = new Persona();
                 persona.setIdPersona(rs.getInt("id_persona"));
                 persona.setNombre(rs.getString("cliente_nombre"));
@@ -350,14 +342,12 @@ public class ClienteDAO {
                 persona.setCalle(rs.getString("cliente_calle"));
                 persona.setNumero(rs.getString("cliente_numero"));
 
-                // Documento
                 Documento documento = new Documento();
                 documento.setIdDocumento(rs.getInt("id_documento"));
                 documento.setNumeroDocumento(rs.getString("numero_documento"));
                 documento.setTipoDocumento(rs.getString("tipo_documento"));
                 persona.setNumeroDocumento(documento.getNumeroDocumento());
 
-                // Barrio / Ciudad / Provincia
                 Barrio barrio = new Barrio();
                 barrio.setIdBarrio(rs.getInt("id_barrio"));
                 barrio.setNombreBarrio(rs.getString("nombre_barrio"));
@@ -376,7 +366,6 @@ public class ClienteDAO {
 
                 cliente.setPersona(persona);
 
-                // Red social (puede ser null)
                 int idRedSocial = rs.getInt("id_red_social");
                 if (idRedSocial != 0) {
                     ClienteRedSocial redSocial = new ClienteRedSocial();
@@ -394,6 +383,7 @@ public class ClienteDAO {
         }
         return lista;
     }
+
 
 
 
@@ -440,43 +430,27 @@ public class ClienteDAO {
             try { if (conn != null) conn.close(); } catch (SQLException e) { e.printStackTrace(); }
         }
     }
-
-
-
     public boolean eliminar(Cliente cliente) throws SQLException {
         Connection conn = null;
-        // IMPORTANTE: Asegurarnos de tener ambos IDs
         int idCliente = cliente.getIdCliente();
-        int idPersona = cliente.getIdPersona();
 
-        if (idCliente <= 0 || idPersona <= 0) return false;
+        if (idCliente <= 0) return false;
 
         try {
             conn = conexionBD.getConnection();
             conn.setAutoCommit(false);
 
-            // PASO 1: Eliminar registros de servicios y visitas usando ID_CLIENTE
-            // (No idPersona, porque la FK en visita es id_cliente)
-            try (PreparedStatement psVisitas = conn.prepareStatement("DELETE FROM visita WHERE id_cliente = ?")) {
-                psVisitas.setInt(1, idCliente);
-                psVisitas.executeUpdate();
-            }
-
-            // PASO 2: Eliminar Red Social usando ID_CLIENTE
-            try (PreparedStatement psRed = conn.prepareStatement(DELETE_RED_SOCIAL_SQL)) {
-                psRed.setInt(1, idCliente);
-                psRed.executeUpdate();
-            }
-
-            // PASO 3: Eliminar de CLIENTE usando ID_CLIENTE
-            try (PreparedStatement psCliente = conn.prepareStatement("DELETE FROM cliente WHERE id_cliente = ?")) {
+            // PASO 1: Marcar cliente como inactivo
+            try (PreparedStatement psCliente = conn.prepareStatement(
+                    "UPDATE cliente SET activo = false WHERE id_cliente = ?")) {
                 psCliente.setInt(1, idCliente);
                 if (psCliente.executeUpdate() == 0) { conn.rollback(); return false; }
             }
 
-            // PASO 4: Eliminar de PERSONA usando ID_PERSONA
-            try (PreparedStatement psPersona = conn.prepareStatement("DELETE FROM persona WHERE id_persona = ?")) {
-                psPersona.setInt(1, idPersona);
+            // PASO 2: Opcional — también marcar persona como inactiva si querés ocultarla
+            try (PreparedStatement psPersona = conn.prepareStatement(
+                    "UPDATE persona SET activo = false WHERE id_persona = ?")) {
+                psPersona.setInt(1, cliente.getIdPersona());
                 psPersona.executeUpdate();
             }
 
@@ -489,6 +463,7 @@ public class ClienteDAO {
             if (conn != null) conn.close();
         }
     }
+
 
 
 
@@ -636,31 +611,7 @@ public class ClienteDAO {
     public List<String> obtenerProvincias() throws SQLException { return obtenerListaGenerica(SELECT_PROVINCIAS, null); }
     public List<String> obtenerCiudadesPorProvincia(String nombreProvincia) throws SQLException { return obtenerListaGenerica(SELECT_CIUDADES_POR_PROVINCIA, nombreProvincia); }
     public List<String> obtenerBarriosPorCiudad(String nombreCiudad) throws SQLException { return obtenerListaGenerica(SELECT_BARRIOS_POR_CIUDAD, nombreCiudad); }
-    public int contarVisitasPorDocumento(String documento) {
-        int cantidad = 0;
-        String sql = "SELECT COUNT(v.id_visita) AS total " +
-                "FROM visita v " +
-                "JOIN cliente c ON v.id_cliente = c.id_cliente " +
-                "JOIN persona p ON c.id_persona = p.id_persona " +
-                "JOIN documento d ON p.id_documento = d.id_documento " +
-                "WHERE d.numero_documento = ?";
 
-        try (Connection conn = ConexionBD.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, documento);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    cantidad = rs.getInt("total");
-                }
-            }
-
-        } catch (SQLException e) {
-            System.err.println("❌ Error al contar visitas por documento: " + e.getMessage());
-        }
-
-        return cantidad;
-    }
 
     public static int contarVisitasPorIdCliente(int idCliente) {
         int cantidad = 0;

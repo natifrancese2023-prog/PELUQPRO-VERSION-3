@@ -1,5 +1,7 @@
 package claseslogicas;
 
+import java.util.Arrays;
+
 public enum EstadoTurno {
 
     PENDIENTE(1, "Pendiente"),
@@ -23,14 +25,16 @@ public enum EstadoTurno {
     public String getNombre() {
         return nombre;
     }
-    public static EstadoTurno fromId(int id) { for (EstadoTurno estado : EstadoTurno.values()) { if (estado.id == id) { return estado; } } throw new IllegalArgumentException("ID de EstadoTurno inválida: " + id); }
 
-    public static EstadoTurno obtenerPorId(int id) {
-        for (EstadoTurno estado : values()) {
-            if (estado.id == id) {
-                return estado;
-            }
+
+
+        // ✅ Método único y defensivo
+        public static EstadoTurno obtenerPorId(int id) {
+            return Arrays.stream(values())
+                    .filter(e -> e.id == id)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Estado de turno inexistente: " + id));
         }
-        return null; // o lanzar excepción si preferís
     }
-}
+
+

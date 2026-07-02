@@ -74,7 +74,7 @@ public class Turno {
     }
 
     public EstadoTurno getEstadoLogico() {
-        return EstadoTurno.fromId(this.idEstado);
+        return EstadoTurno.obtenerPorId(idEstado);
     }
 
     public void setEstadoLogico(EstadoTurno estado) {
@@ -114,7 +114,7 @@ public class Turno {
 
     public void setIdEstado(int idEstado) {
         this.idEstado = idEstado;
-        this.setEstadoLogico(EstadoTurno.fromId(idEstado));
+        this.setEstadoLogico(EstadoTurno.obtenerPorId(idEstado));
     }
 
     public String getMotivoLog() { return motivoLog; }
