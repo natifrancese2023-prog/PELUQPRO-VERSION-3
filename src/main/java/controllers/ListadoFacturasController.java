@@ -114,9 +114,15 @@ public class ListadoFacturasController {
 
         File destino = chooser.showSaveDialog(tblFacturas.getScene().getWindow());
         if (destino != null) {
-            ExportadorReportes.exportarFacturaIndividualPDF(seleccionada, destino);
-            AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "PDF generado", null,
-                    "Factura guardada en: " + destino.getAbsolutePath());
+            try {
+                ExportadorPDF.exportarFacturaIndividualPDF(seleccionada, destino);
+                AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "PDF generado", null,
+                        "Factura guardada en: " + destino.getAbsolutePath());
+            } catch (Exception e) {
+                AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de exportación", null,
+                        "No se pudo generar el PDF de la factura.");
+                e.printStackTrace();
+            }
         }
     }
 }

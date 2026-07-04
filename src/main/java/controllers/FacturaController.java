@@ -106,6 +106,7 @@ public class FacturaController {
 
     @FXML
     private void handleConfirmarFactura() {
+        btnConfirmar.setDisable(true);
         guardarFacturaEnBaseDeDatos();
     }
 
@@ -148,7 +149,7 @@ public class FacturaController {
             facturaDAO.guardarFactura(facturaGenerada, idTurno, metodo.getIdMetodo());
 
             AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", null,"Factura registrada correctamente y turno marcado como Facturado.");
-            btnConfirmar.setDisable(true);
+
 
         } catch (SQLException e) {
             AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error SQL", null,"No se pudo guardar la factura:\n" + e.getMessage());

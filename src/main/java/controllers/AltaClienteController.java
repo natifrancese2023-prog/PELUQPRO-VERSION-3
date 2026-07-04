@@ -18,20 +18,11 @@ import java.util.ResourceBundle;
 import utilidades.AlertaUtil;
 
 
-
-
-
-
 public class AltaClienteController implements Initializable {
 
-    // ======================================
-    // DAO
-    // ======================================
+
     private final ClienteDAO clienteDAO = new ClienteDAO();
 
-    // ======================================
-    // FXML Componentes (Se mantienen igual)
-    // ======================================
     @FXML private ComboBox<String> cmbTipoDocumento;
     @FXML private TextField txtNumeroDocumento;
     @FXML private TextField txtNombre;
@@ -45,22 +36,20 @@ public class AltaClienteController implements Initializable {
     @FXML private ComboBox<String> cmbBarrio;
     @FXML private ComboBox<String> cmbTipoRedSocial;
     @FXML private TextField txtUsuarioRedSocial;
-    @FXML private Button btnAltaCliente;
-    @FXML private Button btnCancelar;
+    private static final String EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
+    private static final String PHONE_REGEX = "^[0-9]{7,15}$";       // Teléfono: solo dígitos, 7-15 caracteres
+    private static final String DOCUMENT_REGEX = "^[0-9]{6,12}$";
+
 
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        // CORREGIDO: Carga inicial envuelta en try-catch
-        cargarComboboxesIniciales();
 
-        // Configurar Listeners para carga dinámica de Ciudad y Barrio
+        cargarComboboxesIniciales();
         configurarListenersComboBox();
     }
 
-    /**
-     * ✅ CORREGIDO: Nuevo método para encapsular la carga inicial con manejo de excepciones.
-     */
+
     private void cargarComboboxesIniciales() {
         try {
             var documentos = clienteDAO.obtenerTiposDocumento();
@@ -88,9 +77,6 @@ public class AltaClienteController implements Initializable {
     }
 
 
-    /**
-     * ✅ CORREGIDO: Las llamadas al DAO dentro de los Listeners deben manejar la SQLException.
-     */
     private void configurarListenersComboBox() {
         // Listener para cargar CIUDADES cuando se selecciona una PROVINCIA
         cmbProvincia.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
@@ -124,7 +110,7 @@ public class AltaClienteController implements Initializable {
         });
     }
 
-    @FXML
+
     private void handleGuardarCliente(ActionEvent event) {
         if (!validarCampos()) {
             return;
@@ -157,36 +143,50 @@ public class AltaClienteController implements Initializable {
         }
 
         try {
+            // 🔎 Validar duplicado antes de insertar
+            Cliente existente = clienteDAO.consultarPorDocumentoCompleto(
+                    nuevoCliente.getNombreTipoDocumento(),
+                    nuevoCliente.getNumeroDocumento()
+            );
+
+            if (existente != null) {
+                AlertaUtil.mostrarAlerta(
+                        Alert.AlertType.ERROR,
+                        "Duplicado",
+                        "Cliente ya registrado",
+                        "Ya existe un cliente con el documento "
+                                + nuevoCliente.getNombreTipoDocumento() + " "
+                                + nuevoCliente.getNumeroDocumento() + "."
+                );
+                return; // aborta el alta
+            }
+
+            // ✅ Si no existe, recién ahí intentamos insertar
             boolean insertado = clienteDAO.insertar(nuevoCliente);
 
             if (insertado) {
                 AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Alta Exitosa",
                         "El nuevo cliente ha sido registrado en la base de datos.");
-                handleCancelar(); // Limpiar campos
+                handleCancelar(); // limpiar campos
             } else {
-                // Si retorna false, es un fallo lógico detectado por el DAO (ej: ID no encontrado)
                 AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Lógica", "Error de Inserción",
                         "No se pudo registrar el cliente. Posiblemente faltan IDs de FKs (Tipo Documento, Barrio).");
             }
 
         } catch (SQLException e) {
-            // Manejamos la SQLException específica delegada por el DAO
             System.err.println("❌ ERROR DE TRANSACCIÓN BD: " + e.getMessage());
-            e.printStackTrace();
-            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Base de Datos", "Error de Conexión o Duplicidad",
-                    "Ocurrió un error al intentar registrar el cliente. Verifique la conexión o si el documento ya existe.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Base de Datos", "Error de Conexión",
+                    "Ocurrió un error al intentar registrar el cliente. Verifique la conexión.");
         }
     }
+
 
 
     @FXML
     private void handleCancelar() {
         limpiarCampos();
     }
-    // Regex de validación
-    private static final String EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
-    private static final String PHONE_REGEX = "^[0-9]{7,15}$";       // Teléfono: solo dígitos, 7-15 caracteres
-    private static final String DOCUMENT_REGEX = "^[0-9]{6,12}$";    // Documento: solo dígitos, 6-12 caracteres
+
 
     private boolean validarCampos() {
         // Validación de campos obligatorios

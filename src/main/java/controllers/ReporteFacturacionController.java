@@ -14,7 +14,7 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
-
+import utilidades.AlertaUtil;
 public class ReporteFacturacionController {
 
     @FXML private DatePicker fechaInicio;
@@ -60,7 +60,7 @@ public class ReporteFacturacionController {
         LocalDate fin = fechaFin.getValue();
 
         if (inicio == null || fin == null || fin.isBefore(inicio)) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Fechas inválidas", null, "Seleccioná un período válido.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fechas inválidas", null, "Seleccioná un período válido.");
             return;
         }
 
@@ -118,7 +118,7 @@ public class ReporteFacturacionController {
     @FXML
     private void exportarReporte() {
         if (tablaResumen.getItems().isEmpty()) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Sin datos", null, "No hay información para exportar.");
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Sin datos", null, "No hay información para exportar.");
             return;
         }
 
@@ -130,21 +130,14 @@ public class ReporteFacturacionController {
         if (archivo != null) {
             try {
                 ExportadorReporte exportador = new ExportadorPDF();
-                exportador.exportarClientes(tablaResumen.getItems(), archivo);
-                mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", null, "El reporte fue exportado correctamente.");
+                exportador.exportarFacturasReporte(tablaResumen.getItems(), archivo);
+                AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", null, "El reporte fue exportado correctamente.");
             } catch (Exception e) {
-                mostrarAlerta(Alert.AlertType.ERROR, "Error de exportación", null, "Ocurrió un error al generar el archivo PDF.");
+                AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de exportación", null, "Ocurrió un error al generar el archivo PDF.");
                 e.printStackTrace();
             }
         }
     }
 
-    // ✅ Ahora mostrarAlerta respeta tipo, título, header opcional y mensaje
-    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String header, String mensaje) {
-        Alert alerta = new Alert(tipo);
-        alerta.setTitle(titulo);
-        alerta.setHeaderText(header);
-        alerta.setContentText(mensaje);
-        alerta.showAndWait();
-    }
+
 }

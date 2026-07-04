@@ -6,13 +6,12 @@ import javafx.stage.FileChooser;
 import java.io.File;
 
 import utilidades.AlertaUtil;
-import claseslogicas.ExportadorReporte;
 import claseslogicas.ExportadorExcel;
 
 public class ReporteGeneralController {
 
     @FXML
-    private void exportarTodoEnExcel() {
+    public static void exportarTodoEnExcel() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Exportar datos completos");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Archivo Excel", "*.xlsx"));
@@ -20,8 +19,10 @@ public class ReporteGeneralController {
 
         if (archivo != null) {
             try {
-                ExportadorReporte exportador = new ExportadorExcel();
-                exportador.exportarTodo(archivo); // ✅ usa la interfaz común
+                // Tipo concreto, no ExportadorReporte: exportarTodo() no es
+                // parte del contrato común porque no tiene equivalente en PDF.
+                ExportadorExcel exportador = new ExportadorExcel();
+                exportador.exportarTodo(archivo);
                 AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación completa", null,
                         "Los datos fueron exportados correctamente.");
             } catch (Exception e) {

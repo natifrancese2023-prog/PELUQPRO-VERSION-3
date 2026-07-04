@@ -62,22 +62,22 @@
 
                 <Button fx:id="btnGestionTurnos" mnemonicParsing="false" prefHeight="45.0" prefWidth="170.0" styleClass="menu-button" text="TURNO" onAction="#abrirModuloTurnos" />
 
-                <Button mnemonicParsing="btnReporteCliete" prefHeight="45.0" prefWidth="170.0" styleClass="menu-button" text="REPORTE CLIENTES"  onAction="#abrirReporteClientes" />
+                <Button mnemonicParsing="btnReporteCliente" prefHeight="45.0" prefWidth="170.0" styleClass="menu-button" text="REPORTE CLIENTES"  onAction="#abrirReporteClientes" />
 
-                <Button mnemonicParsing="false"
+                <Button  fx:id="btnListadoFacturas" mnemonicParsing="false"
                         prefHeight="45.0"
                         prefWidth="170.0"
                         styleClass="menu-button"
                         text="LISTADO FACTURAS"
                         onAction="#abrirListadoFacturas" />
-                <Button mnemonicParsing="false"
+                <Button fx:id="btnReporteFacturacion" mnemonicParsing="false"
                         prefHeight="45.0"
                         prefWidth="170.0"
                         styleClass="menu-button"
                         text="REPORTE FACTURACIÓN"
                         onAction="#abrirReporteFacturacion" />
 
-                <Button mnemonicParsing="btnExportarTodoPower" prefHeight="45.0" prefWidth="170.0" styleClass="menu-button" text="EXPORTAR TODO EXCEL"   onAction="#exportarReporteGeneral"/>
+                <Button fx:id="btnExportarTodoPower"  prefHeight="45.0" prefWidth="170.0" styleClass="menu-button" text="EXPORTAR TODO EXCEL"   onAction="#exportarReporteGeneral"/>
 
             </children>
             <padding>

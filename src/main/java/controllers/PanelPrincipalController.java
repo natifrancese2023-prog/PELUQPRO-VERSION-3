@@ -22,24 +22,73 @@ public class PanelPrincipalController {
 
     @FXML private Label lblUsuario;
     @FXML private AnchorPane panelContenido;
-
     @FXML private Button btnCerrarSesion;
 
-    private Usuario usuarioLogueado;
+    @FXML private Button btnGestionTurnos;
+    @FXML private Button btnReporteCliente;
+    @FXML private Button btnListadoFacturas;
+    @FXML private Button btnReporteFacturacion;
+    @FXML private Button btnExportarTodoPower;
 
+    @FXML private Button btnAlta;
+    @FXML private Button btnFinalizar;
+    @FXML private Button btnFacturar;
+    @FXML private Button btnCancelar;
+    @FXML private Button btnModificar;
+    @FXML private Button btnEliminar;
+    @FXML private Button btnListar;
+    @FXML private Button btnConfirmar;
+
+
+    private Usuario usuarioLogueado;
     public void inicializar(Usuario user) {
         this.usuarioLogueado = user;
         lblUsuario.setText("Bienvenido: " + user.getUsuario());
-        aplicarPermisos(user.getRol());
+        aplicarPermisos(); // sin parámetros
     }
+    private void aplicarPermisos() {
+        Rol rol = usuarioLogueado.getRol();
+        String nombreRol = rol.getNombre();
 
-    private void aplicarPermisos(Rol rol) {
-        if (rol.isEsEstilista()) {
-            // permisos para estilista
-        } else if ("Administrador".equals(rol.getNombre())) {
-            // permisos para administrador
+        if ("Estilista".equalsIgnoreCase(nombreRol) || rol.isEsEstilista()) {
+            // 🔒 Estilista: acceso muy limitado
+
+            btnGestionTurnos.setDisable(true);
+            btnReporteCliente.setDisable(true);
+            btnListadoFacturas.setDisable(true);
+            btnReporteFacturacion.setDisable(true);
+            btnExportarTodoPower.setDisable(true);
+
+            // Módulo Cliente
+            btnAlta.setDisable(true);          // no registra clientes
+            btnListar.setDisable(true);
+            btnModificar.setDisable(true);
+            btnEliminar.setDisable(true);
+        // no listado
+
+
+            // Turnos
+            btnAlta.setDisable(true);          // no registra turnos
+
+            btnConfirmar.setDisable(true);
+            btnFinalizar.setDisable(true);
+            btnFacturar.setDisable(true);
+            btnCancelar.setDisable(true);
+
+
+
+        } else if ("Recepcionista".equalsIgnoreCase(nombreRol)) {
+            btnReporteCliente.setDisable(true);
+            btnListadoFacturas.setDisable(true);
+            btnReporteFacturacion.setDisable(true);
+            btnExportarTodoPower.setDisable(true);
+
+        } else if ("Gerente".equalsIgnoreCase(nombreRol)) {
+            // ✅ Gerente: acceso completo
+            // No se deshabilita nada
         }
     }
+
 
     @FXML
     public void abrirModuloClientes(ActionEvent event) {

@@ -12,7 +12,7 @@ import java.time.LocalDate;
 public class ExportadorExcel implements ExportadorReporte {
 
     @Override
-    public void exportarClientes(ObservableList<FacturaResumen> clientes, File destino) {
+    public void exportarClientesReporte(ObservableList<ClienteReporteExtendido> clientes, File destino) throws Exception {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet hoja = workbook.createSheet("Reporte de Clientes");
 
@@ -45,13 +45,45 @@ public class ExportadorExcel implements ExportadorReporte {
             try (FileOutputStream fos = new FileOutputStream(destino)) {
                 workbook.write(fos);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
     @Override
-    public void exportarTodo(File destino) {
-        // Aquí podés mover tu lógica actual de exportarTodoEnExcel
+    public void exportarFacturasReporte(ObservableList<FacturaResumen> facturas, File destino) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet hoja = workbook.createSheet("Reporte de Facturación");
+
+            hoja.createRow(0).createCell(0).setCellValue("PeluqPro");
+            hoja.createRow(1).createCell(0).setCellValue("Fecha de generación: " + LocalDate.now());
+
+            Row encabezado = hoja.createRow(3);
+            String[] columnas = {"Fecha", "Total facturado", "Métodos de pago"};
+            for (int i = 0; i < columnas.length; i++) {
+                encabezado.createCell(i).setCellValue(columnas[i]);
+            }
+
+            int filaActual = 4;
+            for (FacturaResumen fr : facturas) {
+                Row fila = hoja.createRow(filaActual++);
+                fila.createCell(0).setCellValue(fr.getFecha().toString());
+                fila.createCell(1).setCellValue(fr.getTotalFacturado().toPlainString());
+
+                fila.createCell(2).setCellValue(fr.getResumenMetodosPago());
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(destino)) {
+                workbook.write(fos);
+            }
+        }
+    }
+
+    /**
+     * Volcado general (Clientes + Turnos + Facturas + Visitas). No forma
+     * parte de ExportadorReporte porque, a diferencia de los otros dos
+     * métodos, no tiene equivalente en PDF (ExportadorPDF no lo implementa);
+     * es un método propio de esta clase, usado solo por ReporteGeneralController.
+     */
+    public void exportarTodo(File destino) throws Exception {
+        // TODO: pendiente de implementar el volcado general completo.
     }
 }

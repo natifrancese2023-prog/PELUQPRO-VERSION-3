@@ -127,7 +127,7 @@ public class ReporteClienteController {
         if (archivo != null) {
             try {
                 ExportadorReporte exportador = new ExportadorPDF();
-                exportador.exportarClientes(tablaClientes.getItems(), archivo);
+                exportador.exportarClientesReporte(tablaClientes.getItems(), archivo);
                 AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", null, "El reporte fue exportado correctamente a PDF.");
             } catch (Exception e) {
                 AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de exportación", null, "Ocurrió un error al generar el archivo PDF.");
@@ -151,7 +151,7 @@ public class ReporteClienteController {
         if (archivo != null) {
             try {
                 ExportadorReporte exportador = new ExportadorExcel();
-                exportador.exportarClientes(tablaClientes.getItems(), archivo);
+                exportador.exportarClientesReporte(tablaClientes.getItems(), archivo);
                 AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación exitosa", null, "El reporte fue exportado correctamente a Excel.");
             } catch (Exception e) {
                 AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error de exportación", null, "Ocurrió un error al generar el archivo Excel.");

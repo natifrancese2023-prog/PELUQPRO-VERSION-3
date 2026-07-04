@@ -42,4 +42,6 @@ public class ClienteReporteExtendido {
     public BigDecimal getGastoTotal() { return gastoTotal; }   // ✅ devuelve BigDecimal
     public String getEstadoUltimoTurno() { return estadoUltimoTurno; }
     public String getRedesSociales() { return redesSociales; }
+
+
 }

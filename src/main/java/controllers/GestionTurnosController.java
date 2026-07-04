@@ -79,10 +79,4 @@ public class GestionTurnosController implements Initializable {
             System.err.println("❌ No se encontró el archivo MainPanel.fxml en la ruta especificada.");
         }
     }
-
-    @FXML
-    private void handleVolverPanelPrincipal() {
-        Stage stage = (Stage) btnVolverPanel.getScene().getWindow();
-        stage.close();
-    }
 }

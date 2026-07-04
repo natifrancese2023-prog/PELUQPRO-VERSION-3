@@ -7,6 +7,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+
 
 public class TurnoDAO {
 
@@ -166,12 +169,23 @@ public class TurnoDAO {
     public List<Turno> obtenerTurnosPorCliente(int idCliente) throws SQLException {
         List<Turno> turnos = new ArrayList<>();
 
-        String sql = "SELECT t.id_turno, t.id_cliente, t.id_empleado, t.id_estado, t.fecha, t.hora_inicio, t.hora_fin, " +
-                "t.observaciones, t.fecha_creacion, t.motivo_log, et.nombre_estado AS nombre_turno " +
-                "FROM turno t " +
-                "JOIN estado et ON t.id_estado = et.id_estado " +
-                "WHERE t.id_cliente = ? AND t.id_estado IN (1, 2) AND t.fecha >= CURRENT_DATE " +
-                "ORDER BY t.fecha, t.hora_inicio";
+        String sql = """
+        SELECT t.id_turno, t.id_cliente, t.id_empleado, t.id_estado, 
+               t.fecha, t.hora_inicio, t.hora_fin, t.observaciones, 
+               t.fecha_creacion, t.motivo_log,
+               et.nombre_estado AS nombre_turno,
+               c.nombre AS cliente_nombre, c.apellido AS cliente_apellido, c.telefono AS cliente_telefono,
+               e.nombre AS empleado_nombre, e.apellido AS empleado_apellido,
+               s.id_servicio, s.nombre AS servicio_nombre, s.precio AS servicio_precio
+        FROM turno t
+        JOIN estado et ON t.id_estado = et.id_estado
+        JOIN cliente c ON t.id_cliente = c.id_cliente
+        JOIN empleado e ON t.id_empleado = e.id_empleado
+        LEFT JOIN turno_servicio ts ON t.id_turno = ts.id_turno
+        LEFT JOIN servicio s ON ts.id_servicio = s.id_servicio
+        WHERE t.id_cliente = ? AND t.id_estado IN (1, 2) AND t.fecha >= CURRENT_DATE
+        ORDER BY t.fecha, t.hora_inicio
+    """;
 
         try (Connection conn = conexionBD.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -179,81 +193,152 @@ public class TurnoDAO {
             ps.setInt(1, idCliente);
 
             try (ResultSet rs = ps.executeQuery()) {
+                Map<Integer, Turno> mapaTurnos = new HashMap<>();
+
                 while (rs.next()) {
-                    Turno turno = new Turno();
+                    int idTurno = rs.getInt("id_turno");
+                    Turno turno = mapaTurnos.get(idTurno);
 
-                    int idEstado = rs.getInt("id_estado");
-                    EstadoTurno estado = EstadoTurno.obtenerPorId(idEstado);
+                    if (turno == null) {
+                        turno = new Turno();
+                        turno.setIdTurno(idTurno);
+                        turno.setIdCliente(rs.getInt("id_cliente"));
+                        turno.setIdEmpleado(rs.getInt("id_empleado"));
+                        turno.setFecha(rs.getDate("fecha").toLocalDate());
+                        turno.setHoraInicio(rs.getTime("hora_inicio").toLocalTime());
+                        turno.setHoraFin(rs.getTime("hora_fin").toLocalTime());
+                        turno.setObservaciones(rs.getString("observaciones"));
+                        turno.setFechaCreacion(rs.getTimestamp("fecha_creacion").toLocalDateTime());
+                        turno.setIdEstado(rs.getInt("id_estado"));
+                        turno.setMotivoLog(rs.getString("motivo_log"));
+                        turno.setEstadoTurno(EstadoTurno.obtenerPorId(rs.getInt("id_estado")));
 
-                    turno.setEstadoTurno(estado);
-                    turno.setIdTurno(rs.getInt("id_turno"));
-                    turno.setIdCliente(rs.getInt("id_cliente"));
-                    turno.setIdEmpleado(rs.getInt("id_empleado"));
-                    turno.setFecha(rs.getDate("fecha").toLocalDate());
-                    turno.setHoraInicio(rs.getTime("hora_inicio").toLocalTime());
-                    turno.setHoraFin(rs.getTime("hora_fin").toLocalTime());
-                    turno.setObservaciones(rs.getString("observaciones"));
-                    turno.setFechaCreacion(rs.getTimestamp("fecha_creacion").toLocalDateTime());
-                    turno.setIdEstado(idEstado);
-                    turno.setMotivoLog(rs.getString("motivo_log"));
+                        // Cliente embebido
+                        Cliente cliente = new Cliente();
+                        cliente.setIdCliente(rs.getInt("id_cliente"));
+                        cliente.setNombre(rs.getString("cliente_nombre"));
+                        cliente.setApellido(rs.getString("cliente_apellido"));
+                        cliente.setTelefono(rs.getString("cliente_telefono"));
+                        turno.setCliente(cliente);
 
-                    turno.setCliente(clienteDAO.obtenerPorId(turno.getIdCliente()));
-                    turno.setEmpleado(empleadoDAO.obtenerPorId(turno.getIdEmpleado()));
-                    turno.setServicios(servicioDAO.obtenerServiciosPorTurno(turno.getIdTurno()));
+                        // Empleado embebido
+                        Empleado empleado = new Empleado();
+                        empleado.setIdEmpleado(rs.getInt("id_empleado"));
+                        empleado.setNombre(rs.getString("empleado_nombre"));
+                        empleado.setApellido(rs.getString("empleado_apellido"));
+                        turno.setEmpleado(empleado);
 
-                    turnos.add(turno);
+                        turno.setServicios(new ArrayList<>());
+                        mapaTurnos.put(idTurno, turno);
+                    }
+
+                    // Servicios (puede haber varios por turno)
+                    int idServicio = rs.getInt("id_servicio");
+                    if (idServicio > 0) {
+                        Servicio servicio = new Servicio();
+                        servicio.setIdTipoServicio(idServicio);
+                        servicio.setNombreServicio(rs.getString("servicio_nombre"));
+                        servicio.setPrecio(rs.getBigDecimal("servicio_precio").doubleValue());
+                        turno.getServicios().add(servicio);
+                    }
                 }
+
+                turnos.addAll(mapaTurnos.values());
             }
         }
         return turnos;
     }
-
-
     public List<Turno> obtenerTurnosFiltrados(LocalDate fecha, Integer idEmpleado) throws SQLException {
         List<Turno> turnos = new ArrayList<>();
-        // 🚨 CORREGIDO: De 'turnos' a 'turno' y de 'estado_turno' a 'estado'
-        String sql = "SELECT t.id_turno, t.id_cliente, t.id_empleado, t.id_estado, t.fecha, t.hora_inicio, t.hora_fin, t.observaciones, t.fecha_creacion, t.motivo_log, et.nombre_estado AS nombre_turno FROM turno t JOIN estado et ON t.id_estado = et.id_estado WHERE t.fecha = ? ";
-        if (idEmpleado != null) sql += "AND t.id_empleado = ? ";
-        sql += "ORDER BY t.hora_inicio";
+
+        String sql = """
+        SELECT t.id_turno, t.id_cliente, t.id_empleado, t.id_estado,
+               t.fecha, t.hora_inicio, t.hora_fin, t.observaciones,
+               t.fecha_creacion, t.motivo_log,
+               et.nombre_estado AS nombre_turno,
+               c.nombre AS cliente_nombre, c.apellido AS cliente_apellido, c.telefono AS cliente_telefono,
+               e.nombre AS empleado_nombre, e.apellido AS empleado_apellido,
+               s.id_servicio, s.nombre AS servicio_nombre, s.precio AS servicio_precio
+        FROM turno t
+        JOIN estado et ON t.id_estado = et.id_estado
+        JOIN cliente c ON t.id_cliente = c.id_cliente
+        JOIN empleado e ON t.id_empleado = e.id_empleado
+        LEFT JOIN turno_servicio ts ON t.id_turno = ts.id_turno
+        LEFT JOIN servicio s ON ts.id_servicio = s.id_servicio
+        WHERE t.fecha = ?
+    """;
+
+        if (idEmpleado != null) {
+            sql += " AND t.id_empleado = ? ";
+        }
+        sql += " ORDER BY t.hora_inicio";
 
         try (Connection conn = conexionBD.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             int paramIndex = 1;
             ps.setDate(paramIndex++, Date.valueOf(fecha));
-            if (idEmpleado != null) ps.setInt(paramIndex++, idEmpleado);
+            if (idEmpleado != null) {
+                ps.setInt(paramIndex++, idEmpleado);
+            }
 
             try (ResultSet rs = ps.executeQuery()) {
+                Map<Integer, Turno> mapaTurnos = new HashMap<>();
+
                 while (rs.next()) {
-                    Turno turno = new Turno();
+                    int idTurno = rs.getInt("id_turno");
+                    Turno turno = mapaTurnos.get(idTurno);
 
-                    int idEstado = rs.getInt("id_estado");
-                    EstadoTurno estado = EstadoTurno.obtenerPorId(idEstado);
-                    turno.setEstadoTurno(estado);
+                    if (turno == null) {
+                        turno = new Turno();
+                        turno.setIdTurno(idTurno);
+                        turno.setIdCliente(rs.getInt("id_cliente"));
+                        turno.setIdEmpleado(rs.getInt("id_empleado"));
+                        turno.setFecha(rs.getDate("fecha").toLocalDate());
+                        turno.setHoraInicio(rs.getTime("hora_inicio").toLocalTime());
+                        turno.setHoraFin(rs.getTime("hora_fin").toLocalTime());
+                        turno.setObservaciones(rs.getString("observaciones"));
+                        turno.setFechaCreacion(rs.getTimestamp("fecha_creacion").toLocalDateTime());
+                        turno.setIdEstado(rs.getInt("id_estado"));
+                        turno.setMotivoLog(rs.getString("motivo_log"));
+                        turno.setEstadoTurno(EstadoTurno.obtenerPorId(rs.getInt("id_estado")));
 
-                    turno.setIdTurno(rs.getInt("id_turno"));
-                    turno.setIdCliente(rs.getInt("id_cliente"));
-                    turno.setIdEmpleado(rs.getInt("id_empleado"));
-                    turno.setFecha(rs.getDate("fecha").toLocalDate());
-                    turno.setHoraInicio(rs.getTime("hora_inicio").toLocalTime());
-                    turno.setHoraFin(rs.getTime("hora_fin").toLocalTime());
-                    turno.setObservaciones(rs.getString("observaciones"));
-                    turno.setFechaCreacion(rs.getTimestamp("fecha_creacion").toLocalDateTime());
-                    turno.setIdEstado(idEstado);
-                    turno.setMotivoLog(rs.getString("motivo_log"));
+                        // Cliente embebido
+                        Cliente cliente = new Cliente();
+                        cliente.setIdCliente(rs.getInt("id_cliente"));
+                        cliente.setNombre(rs.getString("cliente_nombre"));
+                        cliente.setApellido(rs.getString("cliente_apellido"));
+                        cliente.setTelefono(rs.getString("cliente_telefono"));
+                        turno.setCliente(cliente);
 
-                    // Carga de objetos relacionados
-                    turno.setCliente(clienteDAO.obtenerPorId(turno.getIdCliente()));
-                    turno.setEmpleado(empleadoDAO.obtenerPorId(turno.getIdEmpleado()));
-                    turno.setServicios(servicioDAO.obtenerServiciosPorTurno(turno.getIdTurno()));
+                        // Empleado embebido
+                        Empleado empleado = new Empleado();
+                        empleado.setIdEmpleado(rs.getInt("id_empleado"));
+                        empleado.setNombre(rs.getString("empleado_nombre"));
+                        empleado.setApellido(rs.getString("empleado_apellido"));
+                        turno.setEmpleado(empleado);
 
-                    turnos.add(turno);
+                        turno.setServicios(new ArrayList<>());
+                        mapaTurnos.put(idTurno, turno);
+                    }
+
+                    // Servicios asociados
+                    int idServicio = rs.getInt("id_servicio");
+                    if (idServicio > 0) {
+                        Servicio servicio = new Servicio();
+                        servicio.setIdTipoServicio(idServicio);
+                        servicio.setNombreServicio(rs.getString("servicio_nombre"));
+                        servicio.setPrecio(rs.getBigDecimal("servicio_precio").doubleValue());
+                        turno.getServicios().add(servicio);
+                    }
                 }
 
+                turnos.addAll(mapaTurnos.values());
             }
         }
         return turnos;
     }
+
     public static List<Turno> obtenerTodos() {
         List<Turno> lista = new ArrayList<>();
         String sql = "SELECT t.id_turno, t.id_cliente, dcli.numero_documento AS cliente_documento, " +

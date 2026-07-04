@@ -1,78 +1,167 @@
 package claseslogicas;
 
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Table;
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
 import javafx.collections.ObservableList;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.time.LocalDate;
+import java.math.RoundingMode;
 
-import static org.apache.poi.poifs.macros.Module.ModuleType.Document;
-
+/**
+ * Exportador de reportes a PDF, usando iText 5 (com.itextpdf.text.*), la
+ * versión de la librería que está realmente declarada en pom.xml.
+ * <p>
+ * Los métodos ya no atrapan la excepción internamente con printStackTrace:
+ * la propagan (throws Exception, por contrato de ExportadorReporte) para
+ * que el controller que llama pueda avisarle al usuario si la exportación
+ * falló de verdad, en vez de mostrar "Exportación exitosa" con un PDF
+ * corrupto o vacío.
+ */
 public class ExportadorPDF implements ExportadorReporte {
 
-    @Override
-    public void exportarClientes(ObservableList<FacturaResumen> clientes, File destino) {
-        try {
-            PdfWriter writer = new PdfWriter(destino);
-            PdfDocument pdf = new PdfDocument(writer);
-            Document document = new Document(pdf);
-
-            // Encabezado institucional
-            document.add(new Paragraph("PeluqPro").setBold().setFontSize(16));
-            document.add(new Paragraph("Dirección: Av. Central 123, Laguna Larga"));
-            document.add(new Paragraph("Teléfono: 03572-400000"));
-            document.add(new Paragraph("Email: contacto@peluqpro.com"));
-            document.add(new Paragraph("Fecha de generación: " + java.time.LocalDate.now()));
-            document.add(new Paragraph("\nReporte de Clientes\n").setBold());
-
-            // Tabla de clientes
-            float[] columnWidths = {200F, 200F, 80F, 100F, 150F};
-            Table table = new Table(columnWidths);
-
-            table.addCell("Nombre");
-            table.addCell("Email");
-            table.addCell("Visitas");
-            table.addCell("Gasto total");
-            table.addCell("Estado último turno");
-
-            for (ClienteReporteExtendido c : clientes) {
-                table.addCell(c.getNombreCompleto());
-                table.addCell(c.getEmail());
-                table.addCell(String.valueOf(c.getCantidadVisitas()));
-                table.addCell("$" + c.getGastoTotal().setScale(2, java.math.RoundingMode.HALF_UP));
-                table.addCell(c.getEstadoUltimoTurno() != null ? c.getEstadoUltimoTurno() : "SIN ESTADO");
-            }
-
-            document.add(table);
-            document.close();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private void agregarEncabezadoInstitucional(Document documento) throws DocumentException {
+        documento.add(new Paragraph("PeluqPro", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16)));
+        documento.add(new Paragraph("Dirección: Av. Central 123, Laguna Larga"));
+        documento.add(new Paragraph("Teléfono: 03572-400000"));
+        documento.add(new Paragraph("Email: contacto@peluqpro.com"));
+        documento.add(new Paragraph("Fecha de generación: " + LocalDate.now()));
+        documento.add(new Paragraph(" "));
     }
 
     @Override
-    public void exportarTodo(File destino) {
-        try {
-            PdfWriter writer = new PdfWriter(destino);
-            PdfDocument pdf = new PdfDocument(writer);
-            Document document = new Document(pdf);
+    public void exportarClientesReporte(ObservableList<ClienteReporteExtendido> clientes, File destino) throws Exception {
+        Document documento = new Document();
+        PdfWriter.getInstance(documento, new FileOutputStream(destino));
+        documento.open();
 
-            document.add(new Paragraph("PeluqPro - Reporte General").setBold().setFontSize(16));
-            document.add(new Paragraph("Fecha de generación: " + java.time.LocalDate.now()));
-            document.add(new Paragraph("\nEste reporte incluye Clientes, Turnos, Facturas y Visitas.\n"));
+        agregarEncabezadoInstitucional(documento);
+        documento.add(new Paragraph("Reporte de Clientes", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14)));
+        documento.add(new Paragraph(" "));
 
-            // 👉 Acá podés replicar la lógica de Excel pero en tablas PDF.
-            // Ejemplo: tabla de clientes, tabla de turnos, etc.
-            // Cada sección se arma con un Table y se agrega al documento.
-
-            document.close();
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        PdfPTable tabla = new PdfPTable(5);
+        tabla.setWidthPercentage(100);
+        for (String header : new String[]{"Nombre", "Email", "Visitas", "Gasto total", "Estado último turno"}) {
+            PdfPCell cell = new PdfPCell(new Phrase(header, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+            tabla.addCell(cell);
         }
+
+        for (ClienteReporteExtendido c : clientes) {
+            tabla.addCell(c.getNombreCompleto());
+            tabla.addCell(c.getEmail() != null ? c.getEmail() : "-");
+            tabla.addCell(String.valueOf(c.getCantidadVisitas()));
+            tabla.addCell("$ " + c.getGastoTotal().setScale(2, RoundingMode.HALF_UP));
+            tabla.addCell(c.getEstadoUltimoTurno() != null ? c.getEstadoUltimoTurno() : "SIN ESTADO");
+        }
+
+        documento.add(tabla);
+        documento.close();
+    }
+
+    @Override
+    public void exportarFacturasReporte(ObservableList<FacturaResumen> facturas, File destino) throws Exception {
+        Document documento = new Document();
+        PdfWriter.getInstance(documento, new FileOutputStream(destino));
+        documento.open();
+
+        agregarEncabezadoInstitucional(documento);
+        documento.add(new Paragraph("Reporte de Facturación", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14)));
+        documento.add(new Paragraph(" "));
+
+        PdfPTable tabla = new PdfPTable(3);
+        tabla.setWidthPercentage(100);
+        for (String header : new String[]{"Fecha", "Total facturado", "Métodos de pago"}) {
+            PdfPCell cell = new PdfPCell(new Phrase(header, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+            tabla.addCell(cell);
+        }
+
+        for (FacturaResumen fr : facturas) {
+            tabla.addCell(fr.getFecha().toString());
+            tabla.addCell(String.format("$ %.2f", fr.getTotalFacturado()));
+            tabla.addCell(fr.getResumenMetodosPago());
+        }
+
+        documento.add(tabla);
+        documento.close();
+    }
+
+    /**
+     * Exporta el PDF de una factura individual. No forma parte de
+     * ExportadorReporte (es específico de factura, no un "reporte" genérico)
+     * — antes vivía en la clase ExportadorReportes (con 's'), que fue
+     * eliminada/renombrada sin actualizar el llamado en
+     * ListadoFacturasController, dejando esa pantalla rota.
+     */
+    public static void exportarFacturaIndividualPDF(Factura factura, File destino) throws Exception {
+        Document documento = new Document();
+        PdfWriter.getInstance(documento, new FileOutputStream(destino));
+        documento.open();
+
+        documento.add(new Paragraph("PeluqPro", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18)));
+        documento.add(new Paragraph("Dirección: Av. Central 123, Laguna Larga"));
+        documento.add(new Paragraph("Teléfono: 03572-400000"));
+        documento.add(new Paragraph("Email: contacto@peluqpro.com"));
+        documento.add(new Paragraph("CUIT: 30-12345678-9"));
+        documento.add(new Paragraph(" "));
+
+        documento.add(new Paragraph("FACTURA", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14)));
+        documento.add(new Paragraph("N° Factura: " + factura.getIdFactura()));
+        documento.add(new Paragraph("Fecha: " + factura.getFechaHora().toLocalDate()));
+        documento.add(new Paragraph("Hora: " + factura.getFechaHora().toLocalTime()));
+        documento.add(new Paragraph(" "));
+
+        documento.add(new Paragraph("Cliente", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        Cliente c = factura.getCliente();
+        if (c != null) {
+            documento.add(new Paragraph("Nombre: " + c.getNombre() + " " + c.getApellido()));
+            documento.add(new Paragraph("Documento: " + (c.getNumeroDocumento() != null ? c.getNumeroDocumento() : "N/A")));
+        }
+        documento.add(new Paragraph(" "));
+
+        documento.add(new Paragraph("Detalle de servicios", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        documento.add(new Paragraph(" "));
+
+        PdfPTable tabla = new PdfPTable(4);
+        tabla.setWidthPercentage(100);
+        tabla.setWidths(new float[]{4f, 1f, 2f, 2f});
+
+        for (String header : new String[]{"Servicio", "Cant.", "Precio unit.", "Subtotal"}) {
+            PdfPCell cell = new PdfPCell(new Phrase(header, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+            cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+            tabla.addCell(cell);
+        }
+
+        if (factura.getDetalles() != null && !factura.getDetalles().isEmpty()) {
+            for (DetalleFactura detalle : factura.getDetalles()) {
+                String desc = detalle.getDescripcionServicio();
+                if (desc == null || desc.isBlank()) desc = "Servicio";
+                tabla.addCell(desc);
+                tabla.addCell(String.valueOf(detalle.getCantidad()));
+                tabla.addCell("$ " + detalle.getPrecioUnitario().setScale(2, RoundingMode.HALF_UP));
+                tabla.addCell("$ " + detalle.getSubtotal().setScale(2, RoundingMode.HALF_UP));
+            }
+        } else {
+            tabla.addCell("Sin servicios registrados");
+            tabla.addCell("-");
+            tabla.addCell("-");
+            tabla.addCell("-");
+        }
+
+        documento.add(tabla);
+        documento.add(new Paragraph(" "));
+
+        documento.add(new Paragraph("Método de pago: " + factura.getMetodoPago()));
+        documento.add(new Paragraph("TOTAL: $ " + factura.getMontoTotal().setScale(2, RoundingMode.HALF_UP),
+                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13)));
+        documento.add(new Paragraph(" "));
+
+        documento.add(new Paragraph("¡Gracias por su visita!", FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 10)));
+
+        documento.close();
     }
 }
