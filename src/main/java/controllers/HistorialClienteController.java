@@ -2,7 +2,7 @@ package controllers;
 
 import claseslogicas.Cliente;
 import claseslogicas.HistorialView;
-import dao.visitaDAO;
+import service.VisitaService;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -24,7 +24,7 @@ import java.util.ResourceBundle;
 public class HistorialClienteController implements Initializable, ConsultaClienteController.ClienteDependiente {
 
     private Cliente clienteActual;
-    private final visitaDAO visitaDAO = new visitaDAO();
+    private final VisitaService visitaService = new VisitaService();
     private final ObservableList<HistorialView> historialData = FXCollections.observableArrayList();
 
     @FXML private Label lblNombreCliente;
@@ -72,7 +72,7 @@ public class HistorialClienteController implements Initializable, ConsultaClient
 
     private void cargarHistorial(int idCliente) {
         historialData.clear();
-        historialData.addAll(visitaDAO.obtenerHistorialPorCliente(idCliente));
+        historialData.addAll(visitaService.obtenerHistorialPorCliente(idCliente));
         btnExportar.setDisable(historialData.isEmpty());
     }
 

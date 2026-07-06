@@ -6,8 +6,6 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
-<?import javafx.geometry.Insets?>
-
 
 <AnchorPane fx:controller="controllers.GestionTurnosController"
             xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1"
@@ -17,7 +15,8 @@
     <children>
 
         <!-- Encabezado -->
-        <HBox alignment="CENTER_LEFT" prefHeight="100.0" AnchorPane.topAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+        <HBox alignment="CENTER_LEFT" prefHeight="100.0"
+              AnchorPane.topAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
             <children>
                 <ImageView fitHeight="86.0" fitWidth="140.0" preserveRatio="true">
                     <image>
@@ -26,12 +25,11 @@
                 </ImageView>
                 <VBox spacing="5.0">
                     <children>
-                        <Label text="PeluqPro" styleClass="label-header">
+                        <Label text="MÓDULO GESTIÓN DE TURNOS" styleClass="label-subsection">
                             <font>
-                                <Font name="Candara" size="41.0" />
+                                <Font name="Candara" size="28.0" />
                             </font>
                         </Label>
-                        <Label text="MÓDULO GESTIÓN DE TURNOS" styleClass="label-subsection" />
                     </children>
                 </VBox>
             </children>
@@ -40,37 +38,39 @@
             </padding>
         </HBox>
 
-        <!-- Menú lateral -->
-        <VBox spacing="10.0" prefWidth="200.0"
-              AnchorPane.topAnchor="100.0" AnchorPane.leftAnchor="0.0" AnchorPane.bottomAnchor="0.0">
+        <!-- Barra superior con botones -->
+        <HBox spacing="10.0" AnchorPane.topAnchor="100.0"
+              AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+              prefHeight="50.0" styleClass="toolbar">
             <children>
-                <Label text="Seleccione una opción." />
+                <Button fx:id="btnAlta" text="REGISTRAR TURNO"
+                        onAction="#cargarSubModulo"
+                        userData="/interface/AltaTurno.fxml"
+                        prefWidth="150.0" styleClass="menu-button" />
 
-                <Button fx:id="btnAlta" text="REGISTRAR TURNO" onAction="#cargarSubModulo"
-                        userData="/interface/AltaTurno.fxml" prefHeight="45.0" prefWidth="170.0"
-                        styleClass="menu-button" />
+                <Button fx:id="btnGestionDiaria" text="AGENDA DIARIA"
+                        onAction="#cargarSubModulo"
+                        userData="/interface/GestionDiaria.fxml"
+                        prefWidth="150.0" styleClass="menu-button" />
 
-                <Button fx:id="btnGestionDiaria" text="GESTIONAR AGENDA DIARIA" onAction="#cargarSubModulo"
-                        userData="/interface/GestionDiaria.fxml" prefHeight="45.0" prefWidth="170.0"
-                        styleClass="menu-button" />
+                <Separator orientation="VERTICAL" prefHeight="30.0" />
 
-                <Separator prefWidth="200.0" />
-                <Separator prefWidth="200.0" />
-
-                <Button fx:id="btnVolverPanel" text="VOLVER" onAction="#handleVolverPanelPrincipal"
-                        prefHeight="45.0" prefWidth="170.0" styleClass="menu-button-secondary" />
+                <Button fx:id="btnVolverPanel" text="VOLVER"
+                        onAction="#handleVolverPanelPrincipal"
+                        prefWidth="120.0" styleClass="menu-button-secondary" />
             </children>
             <padding>
-                <Insets top="10.0" right="10.0" bottom="10.0" left="10.0" />
+                <Insets top="5.0" right="10.0" bottom="5.0" left="10.0" />
             </padding>
-        </VBox>
+        </HBox>
 
         <!-- Panel de contenido dinámico -->
         <AnchorPane fx:id="panelContenidoTurnos"
-                    AnchorPane.topAnchor="100.0" AnchorPane.leftAnchor="200.0"
-                    AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0">
+                    AnchorPane.topAnchor="150.0" AnchorPane.leftAnchor="0.0"
+                    AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0"
+                    styleClass="content-panel">
             <children>
-                <Label text="Seleccione una opción del menú de Turnos."
+                <Label text="Bienvenido al Módulo de Turnos."
                        AnchorPane.topAnchor="20.0" AnchorPane.leftAnchor="20.0" />
             </children>
             <padding>

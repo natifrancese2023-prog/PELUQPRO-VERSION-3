@@ -3,6 +3,7 @@ package controllers;
 import claseslogicas.Cliente;
 import claseslogicas.ClienteRedSocial;
 import dao.ClienteDAO;
+import service.ClienteService;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -21,7 +22,10 @@ public class ModificarClienteController implements Initializable {
     @FXML private TextField txtNombre, txtApellido, txtTelefono, txtEmail, txtCalle, txtNumero, txtUsuarioRedSocial;
     @FXML private ComboBox<String> cmbProvincia, cmbCiudad, cmbBarrio, cmbTipoRedSocial;
 
+    // ClienteDAO se mantiene para las consultas de combos (lecturas puras).
     private final ClienteDAO clienteDAO = new ClienteDAO();
+    // ClienteService centraliza la validación de formato y la actualización.
+    private final ClienteService clienteService = new ClienteService();
     private Cliente clienteActual = null;
 
     @Override
@@ -54,6 +58,18 @@ public class ModificarClienteController implements Initializable {
             return;
         }
 
+        String errorEmail = clienteService.validarEmail(txtEmail.getText().trim());
+        if (errorEmail != null) {
+            AlertaUtil.mostrarAlerta(AlertType.WARNING, "Validación Email", "Formato inválido", errorEmail);
+            return;
+        }
+
+        String errorTelefono = clienteService.validarTelefono(txtTelefono.getText().trim());
+        if (errorTelefono != null) {
+            AlertaUtil.mostrarAlerta(AlertType.WARNING, "Validación Teléfono", "Formato inválido", errorTelefono);
+            return;
+        }
+
         clienteActual.setNombre(txtNombre.getText().trim());
         clienteActual.setApellido(txtApellido.getText().trim());
         clienteActual.setTelefono(txtTelefono.getText().trim());
@@ -77,7 +93,7 @@ public class ModificarClienteController implements Initializable {
         }
 
         try {
-            boolean exito = clienteDAO.actualizar(clienteActual);
+            boolean exito = clienteService.actualizarCliente(clienteActual);
 
             if (exito) {
                 AlertaUtil.mostrarAlerta(AlertType.INFORMATION, "Modificación Exitosa", "Cliente Actualizado", "Los datos del cliente han sido guardados correctamente.");

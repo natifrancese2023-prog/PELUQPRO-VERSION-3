@@ -5,6 +5,7 @@ import java.net.URL;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.Parent;
@@ -12,12 +13,34 @@ import javafx.stage.Stage;
 import javafx.scene.control.Alert.AlertType;
 import utilidades.AlertaUtil;
 
-public class ModuloClienteController {
+public class ModuloClienteController implements Initializable {
 
     @FXML
     private AnchorPane panelContenidoCliente;
 
+    @FXML private Button btnAltaCliente;
+    @FXML private Button btnFicha;
+    @FXML private Button btnListar;
+
     private Stage stage;
+
+    @Override
+    public void initialize(URL url, java.util.ResourceBundle rb) {
+        aplicarPermisos();
+    }
+
+    /**
+     * RD1.1 (Registrar cliente): Gerente y Recepcionista sí, Estilista no.
+     * RD1.6 (Listado de clientes): Gerente únicamente.
+     * btnFicha queda siempre habilitado: los 3 roles necesitan buscar un
+     * cliente por acá (Gerente para todo, Recepcionista para RD1.4
+     * Actualizar, Estilista para RD1.7 Historial y RD1.9 Registrar visita
+     * — esos dos últimos se filtran dentro de FichaClienteController).
+     */
+    private void aplicarPermisos() {
+        btnAltaCliente.setDisable(utilidades.PermisosUtil.esEstilista());
+        btnListar.setDisable(!utilidades.PermisosUtil.esGerente());
+    }
 
     public void setStage(Stage stage) {
         if (stage == null) {

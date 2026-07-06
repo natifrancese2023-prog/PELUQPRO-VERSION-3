@@ -7,30 +7,32 @@ import claseslogicas.Documento;
 import claseslogicas.Provincia;
 import claseslogicas.Barrio;
 import claseslogicas.Ciudad;
-import claseslogicas.ClienteRedSocial;
-
 
 import java.sql.*;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Coordinador del dominio Cliente. Ya no contiene el SQL de documento,
+ * persona ni red_social directamente — eso vive ahora en DocumentoDAO,
+ * PersonaDAO y RedSocialDAO respectivamente. Esta clase mantiene la
+ * transacción (conexión, commit/rollback) y decide el orden de los pasos,
+ * delegando cada paso al DAO especializado correspondiente.
+ * <p>
+ * La API pública (insertar, actualizar, eliminar, obtenerPorId,
+ * consultarPorDocumentoCompleto, obtenerTodos, obtenerTiposDocumento, etc.)
+ * no cambió — ni ClienteService ni ningún controller necesitan modificarse.
+ * <p>
+ * También se resolvió acá la mezcla de métodos static/instancia que tenía
+ * la clase original: ahora todos los métodos públicos son de instancia.
+ */
 public class ClienteDAO {
 
-    private static final String SELECT_TIPO_DOCUMENTO_ID = "SELECT id_tipo_documento FROM tipo_documento WHERE tipo_documento = ?";
-    private static final String SELECT_BARRIO_ID = "SELECT id_barrio FROM barrio WHERE nombre_barrio = ?";
-    private static final String SELECT_TIPOS_RED_SOCIAL_ID = "SELECT id_tipo_red_social FROM tipos_red_social WHERE tipo_red_social = ?";
+    private final DocumentoDAO documentoDAO = new DocumentoDAO();
+    private final PersonaDAO personaDAO = new PersonaDAO();
+    private final RedSocialDAO redSocialDAO = new RedSocialDAO();
 
-    private static final String INSERT_DOCUMENTO_SQL = "INSERT INTO documento (numero_documento, id_tipo_documento) VALUES (?, ?)";
-    private static final String INSERT_PERSONA_SQL = "INSERT INTO persona (nombre, apellido, telefono, email, calle, numero, id_documento, id_barrio) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     private static final String INSERT_CLIENTE_SQL = "INSERT INTO cliente (id_persona) VALUES (?)";
-    private static final String INSERT_RED_SOCIAL_SQL = "INSERT INTO red_social (nombre_usuario, id_tipo_red_social, id_cliente) VALUES (?, ?, ?)";
-
-    private static final String SELECT_PROVINCIAS = "SELECT nombre_provincia FROM provincia ORDER BY nombre_provincia";
-    private static final String SELECT_TIPOS_DOCUMENTO = "SELECT tipo_documento FROM tipo_documento ORDER BY tipo_documento";
-    private static final String SELECT_TIPOS_RED_SOCIAL = "SELECT tipo_red_social FROM tipos_red_social ORDER BY tipo_red_social";
-    private static final String SELECT_CIUDADES_POR_PROVINCIA = "SELECT c.nombre_ciudad FROM ciudad c INNER JOIN provincia p ON c.id_provincia = p.id_provincia WHERE p.nombre_provincia = ? ORDER BY c.nombre_ciudad";
-    private static final String SELECT_BARRIOS_POR_CIUDAD = "SELECT b.nombre_barrio FROM barrio b INNER JOIN ciudad c ON b.id_ciudad = c.id_ciudad WHERE c.nombre_ciudad = ? ORDER BY b.nombre_barrio";
 
     private static final String SELECT_CLIENTE_POR_DOCUMENTO_COMPLETO =
             "SELECT c.id_cliente, p.id_persona, p.nombre, p.apellido, p.telefono, p.email, p.calle, p.numero, " +
@@ -43,7 +45,7 @@ public class ClienteDAO {
                     "JOIN barrio b ON p.id_barrio = b.id_barrio " +
                     "JOIN ciudad ciu ON b.id_ciudad = ciu.id_ciudad " +
                     "JOIN provincia pr ON ciu.id_provincia = pr.id_provincia " +
-                    "WHERE td.tipo_documento = ? AND d.numero_documento = ?";
+                    "WHERE td.tipo_documento = ? AND d.numero_documento = ? AND c.activo = true";
 
     private static final String SELECT_CLIENTE_POR_ID_COMPLETO =
             "SELECT c.id_cliente, p.id_persona, p.nombre, p.apellido, p.telefono, p.email, p.calle, p.numero, " +
@@ -57,46 +59,14 @@ public class ClienteDAO {
                     "JOIN provincia pr ON ciu.id_provincia = pr.id_provincia " +
                     "WHERE c.id_cliente = ?";
 
-    private static final String SELECT_REDES_SOCIAL_POR_CLIENTE =
-            "SELECT rs.nombre_usuario, trs.tipo_red_social " +
-                    "FROM red_social rs " +
-                    "JOIN tipos_red_social trs ON rs.id_tipo_red_social = trs.id_tipo_red_social " +
-                    "WHERE rs.id_cliente = ?";
-
-
-
-    private static final String UPDATE_PERSONA_SQL =
-            "UPDATE persona SET nombre = ?, apellido = ?, telefono = ?, email = ?, calle = ?, numero = ?, id_barrio = ? WHERE id_persona = ?";
-
-    private static final String UPDATE_RED_SOCIAL_SQL =
-            "UPDATE red_social SET nombre_usuario = ?, id_tipo_red_social = ? WHERE id_cliente = ?";
-
-    private static final String SELECT_RED_SOCIAL_EXISTENTE =
-            "SELECT id_cliente FROM red_social WHERE id_cliente = ?";
-
-
-    private static final String DELETE_RED_SOCIAL_SQL =
-            "DELETE FROM red_social WHERE id_cliente = ?";
-    private static final String SELECT_CLIENTE_EXISTENTE_POR_DOCUMENTO =
-            "SELECT c.id_cliente " +
-                    "FROM cliente c " +
-                    "JOIN persona p ON c.id_persona = p.id_persona " +
-                    "JOIN documento d ON p.id_documento = d.id_documento " +
-                    "WHERE d.numero_documento = ? AND d.id_tipo_documento = ?";
-
-
-
-    private static final ConexionBD conexionBD = new ConexionBD();
-
-
     public boolean insertar(Cliente cliente) throws SQLException {
         Connection conn = null;
         try {
-            conn = conexionBD.getConnection();
+            conn = ConexionBD.getConnection();
             conn.setAutoCommit(false);
 
-            int idTipoDocumento = obtenerIdPorNombre(conn, SELECT_TIPO_DOCUMENTO_ID, cliente.getNombreTipoDocumento());
-            int idBarrio = obtenerIdPorNombre(conn, SELECT_BARRIO_ID, cliente.getNombreBarrio());
+            int idTipoDocumento = documentoDAO.obtenerIdTipoDocumento(conn, cliente.getNombreTipoDocumento());
+            int idBarrio = personaDAO.obtenerIdBarrio(conn, cliente.getNombreBarrio());
 
             if (idTipoDocumento == -1 || idBarrio == -1) {
                 conn.rollback();
@@ -104,47 +74,17 @@ public class ClienteDAO {
             }
 
             // PASO 0: Validar duplicidad de documento
-            try (PreparedStatement psCheck = conn.prepareStatement(SELECT_CLIENTE_EXISTENTE_POR_DOCUMENTO)) {
-                psCheck.setString(1, cliente.getNumeroDocumento());
-                psCheck.setInt(2, idTipoDocumento);
-                try (ResultSet rs = psCheck.executeQuery()) {
-                    if (rs.next()) {
-                        conn.rollback();
-                        throw new SQLException("Error: Ya existe un cliente con ese documento.");
-                    }
-                }
+            if (documentoDAO.existeClienteConDocumento(conn, cliente.getNumeroDocumento(), idTipoDocumento)) {
+                conn.rollback();
+                throw new SQLException("Error: Ya existe un cliente con ese documento.");
             }
 
             // PASO 1: Insertar Documento
-            int idDocumento = -1;
-            try (PreparedStatement psDoc = conn.prepareStatement(INSERT_DOCUMENTO_SQL, Statement.RETURN_GENERATED_KEYS)) {
-                psDoc.setString(1, cliente.getNumeroDocumento());
-                psDoc.setInt(2, idTipoDocumento);
-                if (psDoc.executeUpdate() > 0) {
-                    try (ResultSet rs = psDoc.getGeneratedKeys()) {
-                        if (rs.next()) idDocumento = rs.getInt(1);
-                    }
-                }
-            }
+            int idDocumento = documentoDAO.insertar(conn, cliente.getNumeroDocumento(), idTipoDocumento);
             if (idDocumento == -1) { conn.rollback(); return false; }
 
             // PASO 2: Insertar Persona
-            int idPersona = -1;
-            try (PreparedStatement psPer = conn.prepareStatement(INSERT_PERSONA_SQL, Statement.RETURN_GENERATED_KEYS)) {
-                psPer.setString(1, cliente.getNombre());
-                psPer.setString(2, cliente.getApellido());
-                psPer.setString(3, cliente.getTelefono());
-                psPer.setString(4, cliente.getEmail());
-                psPer.setString(5, cliente.getCalle());
-                psPer.setString(6, cliente.getNumero());
-                psPer.setInt(7, idDocumento);
-                psPer.setInt(8, idBarrio);
-                if (psPer.executeUpdate() > 0) {
-                    try (ResultSet rs = psPer.getGeneratedKeys()) {
-                        if (rs.next()) idPersona = rs.getInt(1);
-                    }
-                }
-            }
+            int idPersona = personaDAO.insertar(conn, cliente, idDocumento, idBarrio);
             if (idPersona == -1) { conn.rollback(); return false; }
 
             // PASO 3: Insertar Cliente
@@ -167,21 +107,12 @@ public class ClienteDAO {
             // PASO 4: Insertar Red Social (si existe)
             ClienteRedSocial rsCliente = cliente.getRedSocial();
             if (rsCliente != null && rsCliente.getNombreUsuario() != null && !rsCliente.getNombreUsuario().isEmpty()) {
-                int idTipoRedSocial = obtenerIdPorNombre(conn, SELECT_TIPOS_RED_SOCIAL_ID, rsCliente.getNombreTipoRedSocial());
+                int idTipoRedSocial = redSocialDAO.obtenerIdTipoRedSocial(conn, rsCliente.getNombreTipoRedSocial());
                 if (idTipoRedSocial == -1) {
                     conn.rollback();
                     throw new SQLException("Error: Tipo de Red Social no encontrado.");
                 }
-
-                try (PreparedStatement psRed = conn.prepareStatement(INSERT_RED_SOCIAL_SQL)) {
-                    psRed.setString(1, rsCliente.getNombreUsuario());
-                    psRed.setInt(2, idTipoRedSocial);
-                    psRed.setInt(3, idCliente);
-                    if (psRed.executeUpdate() == 0) {
-                        conn.rollback();
-                        return false;
-                    }
-                }
+                redSocialDAO.insertar(conn, rsCliente.getNombreUsuario(), idTipoRedSocial, idCliente);
             }
 
             conn.commit();
@@ -191,121 +122,96 @@ public class ClienteDAO {
             try { if (conn != null) conn.rollback(); } catch (SQLException ex) { System.err.println("Rollback fallido: " + ex.getMessage()); }
             System.err.println("❌ ERROR DE TRANSACCIÓN: No se pudo insertar el cliente. Detalle: " + e.getMessage());
             throw e;
-
         } finally {
             try { if (conn != null) conn.close(); } catch (SQLException e) { e.printStackTrace(); }
         }
     }
 
-
-
-
     public Cliente obtenerPorId(int idCliente) throws SQLException {
         Cliente cliente = null;
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
 
-        try {
-            conn = conexionBD.getConnection();
-            ps = conn.prepareStatement(SELECT_CLIENTE_POR_ID_COMPLETO);
+        try (Connection conn = ConexionBD.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SELECT_CLIENTE_POR_ID_COMPLETO)) {
+
             ps.setInt(1, idCliente);
-            rs = ps.executeQuery();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    cliente = new Cliente();
+                    int idPersona = rs.getInt("id_persona");
 
-            if (rs.next()) {
-                cliente = new Cliente();
-                int idPersona = rs.getInt("id_persona");
+                    cliente.setIdCliente(rs.getInt("id_cliente"));
+                    cliente.setIdPersona(idPersona);
+                    cliente.setNombre(rs.getString("nombre"));
+                    cliente.setApellido(rs.getString("apellido"));
+                    cliente.setTelefono(rs.getString("telefono"));
+                    cliente.setEmail(rs.getString("email"));
+                    cliente.setCalle(rs.getString("calle"));
+                    cliente.setNumero(rs.getString("numero"));
+                    cliente.setNumeroDocumento(rs.getString("numero_documento"));
+                    cliente.setNombreTipoDocumento(rs.getString("tipo_documento"));
+                    cliente.setNombreProvincia(rs.getString("nombre_provincia"));
+                    cliente.setNombreCiudad(rs.getString("nombre_ciudad"));
+                    cliente.setNombreBarrio(rs.getString("nombre_barrio"));
 
-                cliente.setIdCliente(rs.getInt("id_cliente"));
-                cliente.setIdPersona(idPersona);
-                cliente.setNombre(rs.getString("nombre"));
-                cliente.setApellido(rs.getString("apellido"));
-                cliente.setTelefono(rs.getString("telefono"));
-                cliente.setEmail(rs.getString("email"));
-                cliente.setCalle(rs.getString("calle"));
-                cliente.setNumero(rs.getString("numero"));
-                cliente.setNumeroDocumento(rs.getString("numero_documento"));
-                cliente.setNombreTipoDocumento(rs.getString("tipo_documento"));
-                cliente.setNombreProvincia(rs.getString("nombre_provincia"));
-                cliente.setNombreCiudad(rs.getString("nombre_ciudad"));
-                cliente.setNombreBarrio(rs.getString("nombre_barrio"));
-
-                ClienteRedSocial redSocial = consultarRedSocialPorCliente(conn, idPersona);
-                cliente.setRedSocial(redSocial);
+                    // 🔧 Antes acá se pasaba idPersona por error (mismo bug que
+                    // ya habíamos corregido en consultarPorDocumentoCompleto,
+                    // pero se había quedado sin corregir en este método).
+                    ClienteRedSocial redSocial = redSocialDAO.consultarPorCliente(conn, cliente.getIdCliente());
+                    cliente.setRedSocial(redSocial);
+                }
             }
         } catch (SQLException e) {
             System.err.println("❌ Error al obtener Cliente por ID: " + e.getMessage());
-            e.printStackTrace();
             throw e;
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
         return cliente;
     }
-    public Cliente consultarPorDocumentoCompleto(String tipoDocumento, String numeroDocumento) throws SQLException {
-        Cliente cliente = null;
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
 
+    public Cliente consultarPorDocumentoCompleto(String tipoDocumento, String numeroDocumento) throws SQLException {
         if (tipoDocumento == null || numeroDocumento == null || tipoDocumento.isEmpty() || numeroDocumento.isEmpty()) {
             return null;
         }
 
-        try {
-            conn = conexionBD.getConnection();
-            ps = conn.prepareStatement(SELECT_CLIENTE_POR_DOCUMENTO_COMPLETO);
+        Cliente cliente = null;
+
+        try (Connection conn = ConexionBD.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SELECT_CLIENTE_POR_DOCUMENTO_COMPLETO)) {
+
             ps.setString(1, tipoDocumento.trim().toUpperCase());
             ps.setString(2, numeroDocumento.trim());
-            rs = ps.executeQuery();
 
-            if (rs.next()) {
-                cliente = new Cliente();
-                int idPersona = rs.getInt("id_persona");
-                int idCliente = rs.getInt("id_cliente");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    cliente = new Cliente();
+                    int idCliente = rs.getInt("id_cliente");
 
-                cliente.setIdCliente(idCliente);
-                cliente.setIdPersona(idPersona);
-                cliente.setNombre(rs.getString("nombre"));
-                cliente.setApellido(rs.getString("apellido"));
-                cliente.setTelefono(rs.getString("telefono"));
-                cliente.setEmail(rs.getString("email"));
-                cliente.setCalle(rs.getString("calle"));
-                cliente.setNumero(rs.getString("numero"));
-                cliente.setNumeroDocumento(rs.getString("numero_documento"));
-                cliente.setNombreTipoDocumento(rs.getString("tipo_documento"));
-                cliente.setNombreProvincia(rs.getString("nombre_provincia"));
-                cliente.setNombreCiudad(rs.getString("nombre_ciudad"));
-                cliente.setNombreBarrio(rs.getString("nombre_barrio"));
-                cliente.setFechaAlta(rs.getDate("fecha_alta"));
+                    cliente.setIdCliente(idCliente);
+                    cliente.setIdPersona(rs.getInt("id_persona"));
+                    cliente.setNombre(rs.getString("nombre"));
+                    cliente.setApellido(rs.getString("apellido"));
+                    cliente.setTelefono(rs.getString("telefono"));
+                    cliente.setEmail(rs.getString("email"));
+                    cliente.setCalle(rs.getString("calle"));
+                    cliente.setNumero(rs.getString("numero"));
+                    cliente.setNumeroDocumento(rs.getString("numero_documento"));
+                    cliente.setNombreTipoDocumento(rs.getString("tipo_documento"));
+                    cliente.setNombreProvincia(rs.getString("nombre_provincia"));
+                    cliente.setNombreCiudad(rs.getString("nombre_ciudad"));
+                    cliente.setNombreBarrio(rs.getString("nombre_barrio"));
+                    cliente.setFechaAlta(rs.getDate("fecha_alta"));
 
-                // 🔑 Ajuste: usar idCliente en lugar de idPersona
-                ClienteRedSocial redSocial = consultarRedSocialPorCliente(conn, idCliente);
-                cliente.setRedSocial(redSocial);
+                    ClienteRedSocial redSocial = redSocialDAO.consultarPorCliente(conn, idCliente);
+                    cliente.setRedSocial(redSocial);
+                }
             }
         } catch (SQLException e) {
             System.err.println("❌ Error al consultar Cliente por Documento: " + e.getMessage());
-            e.printStackTrace();
             throw e;
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
         return cliente;
     }
 
-    public static List<Cliente> obtenerTodos() {
+    public List<Cliente> obtenerTodos() {
         List<Cliente> lista = new ArrayList<>();
         String sql = "SELECT c.id_cliente, c.fecha_alta, p.id_persona, p.nombre AS cliente_nombre, " +
                 "p.apellido AS cliente_apellido, p.telefono AS cliente_telefono, p.email AS cliente_email, " +
@@ -321,7 +227,7 @@ public class ClienteDAO {
                 "JOIN ciudad ci ON b.id_ciudad = ci.id_ciudad " +
                 "JOIN provincia pr ON ci.id_provincia = pr.id_provincia " +
                 "LEFT JOIN red_social rs ON c.id_cliente = rs.id_cliente " +
-                "WHERE c.activo = true " +   // 🔑 filtro de clientes activos
+                "WHERE c.activo = true " +
                 "ORDER BY c.id_cliente";
 
         try (Connection conn = ConexionBD.getConnection();
@@ -384,38 +290,22 @@ public class ClienteDAO {
         return lista;
     }
 
-
-
-
-
     public boolean actualizar(Cliente cliente) throws SQLException {
         Connection conn = null;
         if (cliente == null || cliente.getIdPersona() <= 0) return false;
 
         try {
-            conn = conexionBD.getConnection();
+            conn = ConexionBD.getConnection();
             conn.setAutoCommit(false);
 
-            int idBarrio = obtenerIdPorNombre(conn, SELECT_BARRIO_ID, cliente.getNombreBarrio());
+            int idBarrio = personaDAO.obtenerIdBarrio(conn, cliente.getNombreBarrio());
             if (idBarrio == -1) {
                 conn.rollback();
                 throw new SQLException("Error de Modificación: Barrio no encontrado.");
             }
 
-            try (PreparedStatement psPersona = conn.prepareStatement(UPDATE_PERSONA_SQL)) {
-                psPersona.setString(1, cliente.getNombre());
-                psPersona.setString(2, cliente.getApellido());
-                psPersona.setString(3, cliente.getTelefono());
-                psPersona.setString(4, cliente.getEmail());
-                psPersona.setString(5, cliente.getCalle());
-                psPersona.setString(6, cliente.getNumero());
-                psPersona.setInt(7, idBarrio);
-                psPersona.setInt(8, cliente.getIdPersona());
-
-                psPersona.executeUpdate();
-            }
-
-            actualizarRedSocial(conn, cliente);
+            personaDAO.actualizar(conn, cliente, idBarrio);
+            redSocialDAO.actualizar(conn, cliente);
 
             conn.commit();
             return true;
@@ -423,13 +313,13 @@ public class ClienteDAO {
         } catch (SQLException e) {
             try { if (conn != null) conn.rollback(); } catch (SQLException ex) { System.err.println("Rollback fallido: " + ex.getMessage()); }
             System.err.println("ERROR DE TRANSACCIÓN: No se pudo actualizar el cliente. Detalle: " + e.getMessage());
-            e.printStackTrace();
             throw e;
-
         } finally {
             try { if (conn != null) conn.close(); } catch (SQLException e) { e.printStackTrace(); }
         }
     }
+
+    /** Borrado lógico: marca cliente y persona como inactivos, no borra filas físicas. */
     public boolean eliminar(Cliente cliente) throws SQLException {
         Connection conn = null;
         int idCliente = cliente.getIdCliente();
@@ -437,22 +327,16 @@ public class ClienteDAO {
         if (idCliente <= 0) return false;
 
         try {
-            conn = conexionBD.getConnection();
+            conn = ConexionBD.getConnection();
             conn.setAutoCommit(false);
 
-            // PASO 1: Marcar cliente como inactivo
             try (PreparedStatement psCliente = conn.prepareStatement(
                     "UPDATE cliente SET activo = false WHERE id_cliente = ?")) {
                 psCliente.setInt(1, idCliente);
                 if (psCliente.executeUpdate() == 0) { conn.rollback(); return false; }
             }
 
-            // PASO 2: Opcional — también marcar persona como inactiva si querés ocultarla
-            try (PreparedStatement psPersona = conn.prepareStatement(
-                    "UPDATE persona SET activo = false WHERE id_persona = ?")) {
-                psPersona.setInt(1, cliente.getIdPersona());
-                psPersona.executeUpdate();
-            }
+            personaDAO.marcarInactiva(conn, cliente.getIdPersona());
 
             conn.commit();
             return true;
@@ -464,156 +348,7 @@ public class ClienteDAO {
         }
     }
 
-
-
-
-    private int obtenerIdPorNombre(Connection conn, String query, String nombre) throws SQLException {
-        if (nombre == null || nombre.isEmpty()) return -1;
-        try (PreparedStatement ps = conn.prepareStatement(query)) {
-            ps.setString(1, nombre);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1);
-                }
-            }
-        }
-        return -1;
-    }
-
-    private List<String> obtenerListaGenerica(String query, String parametro) throws SQLException {
-        List<String> lista = new ArrayList<>();
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        try {
-            conn = conexionBD.getConnection();
-            ps = conn.prepareStatement(query);
-
-            if (parametro != null) {
-                ps.setString(1, parametro);
-            }
-
-            rs = ps.executeQuery();
-
-            while (rs.next()) {
-                lista.add(rs.getString(1));
-            }
-
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-        return lista;
-    }
-
-    private void actualizarRedSocial(Connection conn, Cliente cliente) throws SQLException {
-        ClienteRedSocial rsCliente = cliente.getRedSocial();
-        int idCliente = cliente.getIdPersona();
-
-        if (rsCliente == null || rsCliente.getNombreUsuario() == null || rsCliente.getNombreUsuario().isEmpty()) {
-            try (PreparedStatement psDelete = conn.prepareStatement(DELETE_RED_SOCIAL_SQL)) {
-                psDelete.setInt(1, idCliente);
-                psDelete.executeUpdate();
-            }
-            return;
-        }
-
-        int idTipoRedSocial = obtenerIdPorNombre(conn, SELECT_TIPOS_RED_SOCIAL_ID, rsCliente.getNombreTipoRedSocial());
-        if (idTipoRedSocial == -1) {
-            throw new SQLException("Error: Tipo de Red Social '" + rsCliente.getNombreTipoRedSocial() + "' no encontrado.");
-        }
-
-        boolean existe = consultarRedSocialExistente(conn, idCliente);
-
-        if (existe) {
-            try (PreparedStatement psUpdate = conn.prepareStatement(UPDATE_RED_SOCIAL_SQL)) {
-                psUpdate.setString(1, rsCliente.getNombreUsuario());
-                psUpdate.setInt(2, idTipoRedSocial);
-                psUpdate.setInt(3, idCliente);
-                psUpdate.executeUpdate();
-            }
-        } else {
-            try (PreparedStatement psInsert = conn.prepareStatement(INSERT_RED_SOCIAL_SQL)) {
-                psInsert.setString(1, rsCliente.getNombreUsuario());
-                psInsert.setInt(2, idTipoRedSocial);
-                psInsert.setInt(3, idCliente);
-                psInsert.executeUpdate();
-            }
-        }
-    }
-
-    private ClienteRedSocial consultarRedSocialPorCliente(Connection conn, int idCliente) throws SQLException {
-        ClienteRedSocial redSocial = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        ps = conn.prepareStatement(SELECT_REDES_SOCIAL_POR_CLIENTE);
-        ps.setInt(1, idCliente);
-        rs = ps.executeQuery();
-
-        if (rs.next()) {
-            redSocial = new ClienteRedSocial();
-            redSocial.setNombreUsuario(rs.getString("nombre_usuario"));
-            redSocial.setNombreTipoRedSocial(rs.getString("tipo_red_social"));
-        }
-
-        if (rs != null) rs.close();
-        if (ps != null) ps.close();
-        return redSocial;
-    }
-
-    private boolean consultarRedSocialExistente(Connection conn, int idCliente) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(SELECT_RED_SOCIAL_EXISTENTE)) {
-            ps.setInt(1, idCliente);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
-            }
-        }
-    }
-
-    public List<String> obtenerTiposDocumento() throws java.sql.SQLException {
-        List<String> tipos = new ArrayList<>();
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        String sql = SELECT_TIPOS_DOCUMENTO;
-
-        try {
-            conn = conexionBD.getConnection();
-            ps = conn.prepareStatement(sql);
-            rs = ps.executeQuery();
-
-            while (rs.next()) {
-                tipos.add(rs.getString("tipo_documento"));
-            }
-
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                System.err.println("Error al cerrar recursos: " + e.getMessage());
-            }
-        }
-        return tipos;
-    }
-
-
-    public List<String> obtenerTiposRedSocial() throws SQLException { return obtenerListaGenerica(SELECT_TIPOS_RED_SOCIAL, null); }
-    public List<String> obtenerProvincias() throws SQLException { return obtenerListaGenerica(SELECT_PROVINCIAS, null); }
-    public List<String> obtenerCiudadesPorProvincia(String nombreProvincia) throws SQLException { return obtenerListaGenerica(SELECT_CIUDADES_POR_PROVINCIA, nombreProvincia); }
-    public List<String> obtenerBarriosPorCiudad(String nombreCiudad) throws SQLException { return obtenerListaGenerica(SELECT_BARRIOS_POR_CIUDAD, nombreCiudad); }
-
-
-    public static int contarVisitasPorIdCliente(int idCliente) {
+    public int contarVisitasPorIdCliente(int idCliente) {
         int cantidad = 0;
         String sql = "SELECT COUNT(*) AS total FROM visita WHERE id_cliente = ?";
 
@@ -621,13 +356,11 @@ public class ClienteDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, idCliente);
-
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     cantidad = rs.getInt("total");
                 }
             }
-
         } catch (SQLException e) {
             System.err.println("❌ Error al contar visitas por cliente: " + e.getMessage());
         }
@@ -635,6 +368,23 @@ public class ClienteDAO {
         return cantidad;
     }
 
+    public List<String> obtenerTiposDocumento() throws SQLException {
+        return documentoDAO.obtenerTiposDocumento();
+    }
 
+    public List<String> obtenerTiposRedSocial() throws SQLException {
+        return redSocialDAO.obtenerTiposRedSocial();
+    }
 
+    public List<String> obtenerProvincias() throws SQLException {
+        return personaDAO.obtenerProvincias();
+    }
+
+    public List<String> obtenerCiudadesPorProvincia(String nombreProvincia) throws SQLException {
+        return personaDAO.obtenerCiudadesPorProvincia(nombreProvincia);
+    }
+
+    public List<String> obtenerBarriosPorCiudad(String nombreCiudad) throws SQLException {
+        return personaDAO.obtenerBarriosPorCiudad(nombreCiudad);
+    }
 }

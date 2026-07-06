@@ -2,8 +2,8 @@ package controllers;
 
 import claseslogicas.*;
 import dao.EmpleadoDAO;
-import dao.TurnoDAO;
-import dao.visitaDAO;
+import service.TurnoService;
+import service.VisitaService;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -24,8 +24,8 @@ import static utilidades.AlertaUtil.mostrarAlerta;
 
 public class CargarVisitaController implements Initializable, ConsultaClienteController.ClienteDependiente {
 
-    private final visitaDAO visitaDAO = new visitaDAO();
-    private final TurnoDAO turnoDAO = new TurnoDAO();
+    private final VisitaService visitaService = new VisitaService();
+    private final TurnoService turnoService = new TurnoService();
     private final EmpleadoDAO empleadoDAO = new EmpleadoDAO();
 
     private Cliente clienteActual;
@@ -66,7 +66,7 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
 
         nombreEstilistaTabla = estilistaLogueado.getUsuario();
 
-        cmbTipoServicio.getItems().addAll(visitaDAO.obtenerNombresServicios());
+        cmbTipoServicio.getItems().addAll(visitaService.obtenerNombresServicios());
 
         colFecha.setCellValueFactory(new PropertyValueFactory<>("fecha"));
         colServicio.setCellValueFactory(new PropertyValueFactory<>("servicio"));
@@ -88,7 +88,7 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
 
     private void cargarTurnosDelCliente(int idCliente) {
         try {
-            List<Turno> turnos = turnoDAO.obtenerTurnosPorCliente(idCliente);
+            List<Turno> turnos = turnoService.obtenerTurnosPorCliente(idCliente);
             cmbTurnoCliente.setItems(FXCollections.observableArrayList(turnos));
             cmbTurnoCliente.getSelectionModel().selectFirst();
         } catch (SQLException e) {
@@ -178,17 +178,13 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
 
         idTurno = turnoSeleccionado.getIdTurno();
 
-        try {
-            turnoDAO.actualizarEstado(idTurno, EstadoTurno.FINALIZADO, "Visita registrada");
-        } catch (SQLException e) {
-            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error al finalizar turno", null,"No se pudo actualizar el estado del turno.");
-            e.printStackTrace();
-            return;
-        }
-
         int idEstilista = estilistaLogueado.getIdEmpleadoFk();
 
-        boolean exito = visitaDAO.guardarNuevaVisita(clienteActual, listaServicios, idEstilista, idTurno);
+        // registrarVisita ya marca el turno como FINALIZADO dentro de su
+        // propia transacción (junto con el guardado de la visita) — no hace
+        // falta un cambiarEstado() aparte acá; antes había uno redundante
+        // que hacía un segundo UPDATE innecesario sobre el mismo turno.
+        boolean exito = visitaService.registrarVisita(clienteActual, listaServicios, idEstilista, idTurno);
 
         if (exito) {
             AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", null,"Visita y servicios guardados correctamente.");

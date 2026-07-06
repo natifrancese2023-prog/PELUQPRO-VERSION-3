@@ -16,7 +16,6 @@ public class TurnoDAO {
     private static final ConexionBD conexionBD = new ConexionBD();
     private final HorarioAtencionDAO horarioDAO = new HorarioAtencionDAO();
     private final EmpleadoDAO empleadoDAO = new EmpleadoDAO();
-    private final ClienteDAO clienteDAO = new ClienteDAO();
     private final ServicioDAO servicioDAO = new ServicioDAO();
 
     private static final int ID_PENDIENTE = EstadoTurno.PENDIENTE.getId();
@@ -181,7 +180,7 @@ public class TurnoDAO {
         JOIN estado et ON t.id_estado = et.id_estado
         JOIN cliente c ON t.id_cliente = c.id_cliente
         JOIN empleado e ON t.id_empleado = e.id_empleado
-        LEFT JOIN turno_servicio ts ON t.id_turno = ts.id_turno
+        LEFT JOIN turno_servicios ts ON t.id_turno = ts.id_turno
         LEFT JOIN servicio s ON ts.id_servicio = s.id_servicio
         WHERE t.id_cliente = ? AND t.id_estado IN (1, 2) AND t.fecha >= CURRENT_DATE
         ORDER BY t.fecha, t.hora_inicio
@@ -263,7 +262,7 @@ public class TurnoDAO {
         JOIN estado et ON t.id_estado = et.id_estado
         JOIN cliente c ON t.id_cliente = c.id_cliente
         JOIN empleado e ON t.id_empleado = e.id_empleado
-        LEFT JOIN turno_servicio ts ON t.id_turno = ts.id_turno
+        LEFT JOIN turno_servicios ts ON t.id_turno = ts.id_turno
         LEFT JOIN servicio s ON ts.id_servicio = s.id_servicio
         WHERE t.fecha = ?
     """;

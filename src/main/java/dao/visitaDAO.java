@@ -83,7 +83,7 @@ public class visitaDAO {
                 return false;
             }
             TurnoDAO turnoDAO = new TurnoDAO();
-            turnoDAO.actualizarEstadoTurno(conn, idTurno, 3);
+            turnoDAO.actualizarEstadoTurno(conn, idTurno, EstadoTurno.FINALIZADO.getId());
             conn.commit();
             return true;
 

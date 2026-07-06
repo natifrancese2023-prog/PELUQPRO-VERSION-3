@@ -62,7 +62,7 @@
 
                 <Button fx:id="btnGestionTurnos" mnemonicParsing="false" prefHeight="45.0" prefWidth="170.0" styleClass="menu-button" text="TURNO" onAction="#abrirModuloTurnos" />
 
-                <Button mnemonicParsing="btnReporteCliente" prefHeight="45.0" prefWidth="170.0" styleClass="menu-button" text="REPORTE CLIENTES"  onAction="#abrirReporteClientes" />
+                <Button fx:id="btnReporteCliente" mnemonicParsing="false" prefHeight="45.0" prefWidth="170.0" styleClass="menu-button" text="REPORTE CLIENTES"  onAction="#abrirReporteClientes" />
 
                 <Button  fx:id="btnListadoFacturas" mnemonicParsing="false"
                         prefHeight="45.0"

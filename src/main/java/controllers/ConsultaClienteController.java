@@ -3,6 +3,7 @@ package controllers;
 import claseslogicas.Cliente;
 import claseslogicas.ClienteRedSocial;
 import dao.ClienteDAO;
+import service.ClienteService;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -22,6 +23,7 @@ import utilidades.AlertaUtil;
 public class ConsultaClienteController implements Initializable {
 
     private final ClienteDAO clienteDAO = new ClienteDAO();
+    private final ClienteService clienteService = new ClienteService();
     private Cliente clienteActual = null;
 
     @FXML private ComboBox<String> cmbTipoDocumento;
@@ -87,7 +89,7 @@ public class ConsultaClienteController implements Initializable {
         clienteActual = null;
 
         try {
-            clienteActual = clienteDAO.consultarPorDocumentoCompleto(tipoDoc, numDoc);
+            clienteActual = clienteService.buscarPorDocumento(tipoDoc, numDoc);
 
             if (clienteActual != null) {
                 AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", null,"Cliente encontrado.");

@@ -1,7 +1,7 @@
 package controllers;
 
 import claseslogicas.Cliente;
-import dao.ClienteDAO;
+import service.ClienteService;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -22,7 +22,7 @@ import java.util.ResourceBundle;
 
 public class ListarClientesController implements Initializable {
 
-    private final ClienteDAO clienteDAO = new ClienteDAO();
+    private final ClienteService clienteService = new ClienteService();
 
     @FXML private TableView<Cliente> tblClientes;
     @FXML private TableColumn<Cliente, String> colNombre;
@@ -57,11 +57,17 @@ public class ListarClientesController implements Initializable {
                 )
         );
 
-        colFechaAlta.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("fechaAltaString"));
+        colFechaAlta.setCellValueFactory(cellData ->
+                new SimpleStringProperty(
+                        cellData.getValue().getFechaAlta() != null
+                                ? cellData.getValue().getFechaAlta().toString()
+                                : "-"
+                )
+        );
 
         colNumeroVisitas.setCellValueFactory(cellData -> {
             Cliente cliente = cellData.getValue();
-            int cantidadVisitas = clienteDAO.contarVisitasPorIdCliente(cliente.getIdCliente());
+            int cantidadVisitas = clienteService.contarVisitasPorIdCliente(cliente.getIdCliente());
             return new SimpleIntegerProperty(cantidadVisitas).asObject();
         });
 
@@ -92,7 +98,7 @@ public class ListarClientesController implements Initializable {
 
     public void cargarDatosClientes() {
         try {
-            ObservableList<Cliente> listaClientes = FXCollections.observableArrayList(clienteDAO.obtenerTodos());
+            ObservableList<Cliente> listaClientes = FXCollections.observableArrayList(clienteService.obtenerTodos());
             tblClientes.setItems(listaClientes);
         } catch (Exception e) {
             AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", "Carga de clientes", "No se pudieron cargar los clientes: " + e.getMessage());

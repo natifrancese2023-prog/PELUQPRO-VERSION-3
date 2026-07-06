@@ -1,7 +1,7 @@
 package controllers;
 
 import claseslogicas.Cliente;
-import dao.ClienteDAO;
+import service.ClienteService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
@@ -16,7 +16,7 @@ import utilidades.AlertaUtil;
 
 public class EliminarClienteController implements Initializable {
 
-    private final ClienteDAO clienteDAO = new ClienteDAO();
+    private final ClienteService clienteService = new ClienteService();
     private Cliente clienteActual = null;
 
     @FXML private VBox vboxDatosCliente;
@@ -66,7 +66,7 @@ public class EliminarClienteController implements Initializable {
             try {
                 System.out.println("🔍 Intentando eliminar cliente con ID: " + clienteActual.getIdCliente());
 
-                boolean eliminado = clienteDAO.eliminar(clienteActual);
+                boolean eliminado = clienteService.eliminarCliente(clienteActual);
 
                 if (eliminado) {
                     AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", null,"Cliente eliminado con éxito del sistema.");

@@ -18,6 +18,8 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import utilidades.AlertaUtil;
+import service.ClienteService;
+import service.TurnoService;
 
 public class AltaTurnoController implements Initializable {
 
@@ -37,9 +39,10 @@ public class AltaTurnoController implements Initializable {
 
     // --- DAOs ---
     private final ClienteDAO clienteDAO = new ClienteDAO();
+    private final ClienteService clienteService = new ClienteService();
     private final EmpleadoDAO empleadoDAO = new EmpleadoDAO();
     private final ServicioDAO servicioDAO = new ServicioDAO();
-    private final TurnoDAO turnoDAO = new TurnoDAO();
+    private final TurnoService turnoService = new TurnoService();
 
     // --- Variables de Estado ---
     private Cliente clienteActual;
@@ -121,7 +124,7 @@ public class AltaTurnoController implements Initializable {
         }
 
         try {
-            clienteActual = clienteDAO.consultarPorDocumentoCompleto(tipoDoc, numDoc);
+            clienteActual = clienteService.buscarPorDocumento(tipoDoc, numDoc);
 
             if (clienteActual != null) {
                 lblNombreCliente.setText("Cliente: " + clienteActual.getNombreCompleto());
@@ -265,7 +268,7 @@ public class AltaTurnoController implements Initializable {
 
         try {
             System.out.println("DEBUG: Duración enviada: " + duracionTotalMinutos + " minutos. Fecha: " + fecha);
-            List<BloqueDisponible> disponibles = turnoDAO.obtenerTurnosDisponibles(fecha, duracionTotalMinutos, idEstilista);
+            List<BloqueDisponible> disponibles = turnoService.buscarDisponibilidad(fecha, duracionTotalMinutos, idEstilista);
 
             lvTurnosDisponibles.setItems(FXCollections.observableArrayList(disponibles));
 
@@ -331,12 +334,10 @@ public class AltaTurnoController implements Initializable {
         nuevoTurno.setServicios(new ArrayList<>(serviciosSeleccionados));
         nuevoTurno.setObservaciones(txtObservaciones.getText());
 
-        // Establece el estado inicial
-        nuevoTurno.setEstadoLogico(EstadoTurno.PENDIENTE);
-
         try {
-            // 2. Ejecutar la transacción de inserción
-            boolean exito = turnoDAO.insertarTurno(nuevoTurno);
+            // 2. Ejecutar la transacción de inserción (el estado inicial
+            // PENDIENTE lo asigna TurnoService.registrarTurno)
+            boolean exito = turnoService.registrarTurno(nuevoTurno);
 
             if (exito) {
                 AlertaUtil.mostrarAlerta(

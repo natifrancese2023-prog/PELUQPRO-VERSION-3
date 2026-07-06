@@ -4,6 +4,7 @@ import claseslogicas.Cliente;
 import claseslogicas.ClienteRedSocial;
 
 import dao.ClienteDAO;
+import service.ClienteService;
 
 import javafx.collections.FXCollections; // Necesario para setAll/getItems
 import javafx.event.ActionEvent;
@@ -20,8 +21,13 @@ import utilidades.AlertaUtil;
 
 public class AltaClienteController implements Initializable {
 
-
+    // ClienteDAO se mantiene para las consultas de combos (provincias, ciudades,
+    // barrios, tipos de documento/red social) — son lecturas puras, sin regla
+    // de negocio, no hace falta pasarlas por el service.
     private final ClienteDAO clienteDAO = new ClienteDAO();
+    // ClienteService concentra la regla de negocio del alta: formato de
+    // datos y chequeo de duplicado antes de insertar.
+    private final ClienteService clienteService = new ClienteService();
 
     @FXML private ComboBox<String> cmbTipoDocumento;
     @FXML private TextField txtNumeroDocumento;
@@ -36,9 +42,6 @@ public class AltaClienteController implements Initializable {
     @FXML private ComboBox<String> cmbBarrio;
     @FXML private ComboBox<String> cmbTipoRedSocial;
     @FXML private TextField txtUsuarioRedSocial;
-    private static final String EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
-    private static final String PHONE_REGEX = "^[0-9]{7,15}$";       // Teléfono: solo dígitos, 7-15 caracteres
-    private static final String DOCUMENT_REGEX = "^[0-9]{6,12}$";
 
 
 
@@ -111,6 +114,7 @@ public class AltaClienteController implements Initializable {
     }
 
 
+    @FXML
     private void handleGuardarCliente(ActionEvent event) {
         if (!validarCampos()) {
             return;
@@ -143,14 +147,15 @@ public class AltaClienteController implements Initializable {
         }
 
         try {
-            // 🔎 Validar duplicado antes de insertar
-            Cliente existente = clienteDAO.consultarPorDocumentoCompleto(
-                    nuevoCliente.getNombreTipoDocumento(),
-                    nuevoCliente.getNumeroDocumento()
-            );
+            ClienteService.ResultadoAlta resultado = clienteService.registrarCliente(nuevoCliente);
 
-            if (existente != null) {
-                AlertaUtil.mostrarAlerta(
+            switch (resultado) {
+                case OK -> {
+                    AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Alta Exitosa",
+                            "El nuevo cliente ha sido registrado en la base de datos.");
+                    handleCancelar(); // limpiar campos
+                }
+                case DUPLICADO -> AlertaUtil.mostrarAlerta(
                         Alert.AlertType.ERROR,
                         "Duplicado",
                         "Cliente ya registrado",
@@ -158,18 +163,7 @@ public class AltaClienteController implements Initializable {
                                 + nuevoCliente.getNombreTipoDocumento() + " "
                                 + nuevoCliente.getNumeroDocumento() + "."
                 );
-                return; // aborta el alta
-            }
-
-            // ✅ Si no existe, recién ahí intentamos insertar
-            boolean insertado = clienteDAO.insertar(nuevoCliente);
-
-            if (insertado) {
-                AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Alta Exitosa",
-                        "El nuevo cliente ha sido registrado en la base de datos.");
-                handleCancelar(); // limpiar campos
-            } else {
-                AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Lógica", "Error de Inserción",
+                case ERROR_INSERCION -> AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Lógica", "Error de Inserción",
                         "No se pudo registrar el cliente. Posiblemente faltan IDs de FKs (Tipo Documento, Barrio).");
             }
 
@@ -201,23 +195,23 @@ public class AltaClienteController implements Initializable {
         }
 
         // Validación de email
-        if (!txtEmail.getText().trim().matches(EMAIL_REGEX)) {
-            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Email", "Formato inválido",
-                    "Ingrese un email válido (ejemplo: usuario@dominio.com).");
+        String errorEmail = clienteService.validarEmail(txtEmail.getText().trim());
+        if (errorEmail != null) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Email", "Formato inválido", errorEmail);
             return false;
         }
 
         // Validación de teléfono
-        if (!txtTelefono.getText().trim().matches(PHONE_REGEX)) {
-            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Teléfono", "Formato inválido",
-                    "El teléfono debe contener solo dígitos y tener entre 7 y 15 caracteres.");
+        String errorTelefono = clienteService.validarTelefono(txtTelefono.getText().trim());
+        if (errorTelefono != null) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Teléfono", "Formato inválido", errorTelefono);
             return false;
         }
 
         // Validación de documento
-        if (!txtNumeroDocumento.getText().trim().matches(DOCUMENT_REGEX)) {
-            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Documento", "Formato inválido",
-                    "El documento debe contener solo dígitos y tener entre 6 y 12 caracteres.");
+        String errorDocumento = clienteService.validarDocumento(txtNumeroDocumento.getText().trim());
+        if (errorDocumento != null) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Validación Documento", "Formato inválido", errorDocumento);
             return false;
         }
 

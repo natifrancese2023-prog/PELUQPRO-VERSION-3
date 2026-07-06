@@ -6,52 +6,57 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import utilidades.SeguridadUtil; // nuestra clase con BCrypt
 
 public class UsuarioDao {
 
     private final ConexionBD conexionBD = new ConexionBD();
 
-    public Usuario validarUsuario(String usuario, String contrasena) {
+    public Usuario validarUsuario(String usuario, String contrasenaIngresada) {
         Usuario user = null;
 
-        // 🏆 Agregamos u.id_empleado_fk a la consulta SQL
+        // ⚠️ Ya NO filtramos por contraseña en la SQL, solo por usuario
         String sql = "SELECT u.id, u.usuario, u.contrasena, u.id_empleado_fk, " +
                 "r.id_rol, r.nombre_rol, r.es_estilista " +
                 "FROM usuarios u " +
                 "JOIN roles r ON u.id_rol_fk = r.id_rol " +
-                "WHERE u.usuario = ? AND u.contrasena = ?";
+                "WHERE u.usuario = ?";
 
         try (Connection conn = conexionBD.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             System.out.println("✅ Intentando conexión para usuario: " + usuario);
             stmt.setString(1, usuario);
-            stmt.setString(2, contrasena);
 
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                System.out.println("✅ Usuario validado correctamente.");
+                String hashAlmacenado = rs.getString("contrasena");
 
-                // 1. Mapeo del Rol
-                Rol rol = new Rol();
-                rol.setIdRol(rs.getInt("id_rol"));
-                rol.setNombre(rs.getString("nombre_rol"));
-                rol.setEsEstilista(rs.getBoolean("es_estilista"));
+                // 🔑 Verificamos la contraseña ingresada contra el hash
+                if (SeguridadUtil.verificarPassword(contrasenaIngresada, hashAlmacenado)) {
+                    System.out.println("✅ Usuario validado correctamente.");
 
-                // 2. Mapeo del Usuario
-                user = new Usuario();
-                user.setId(rs.getInt("id"));
-                user.setUsuario(rs.getString("usuario"));
-                user.setContrasena(rs.getString("contrasena"));
-                user.setRol(rol);
+                    // 1. Mapeo del Rol
+                    Rol rol = new Rol();
+                    rol.setIdRol(rs.getInt("id_rol"));
+                    rol.setNombre(rs.getString("nombre_rol"));
+                    rol.setEsEstilista(rs.getBoolean("es_estilista"));
 
-                // 🏆 3. Mapeo del ID de Empleado (El vínculo que evita que se rompa el sistema)
-                // Asegúrate de que en la clase Usuario el método se llame así:
-                user.setIdEmpleadoFk(rs.getInt("id_empleado_fk"));
+                    // 2. Mapeo del Usuario
+                    user = new Usuario();
+                    user.setId(rs.getInt("id"));
+                    user.setUsuario(rs.getString("usuario"));
+                    user.setContrasena(hashAlmacenado); // guardamos el hash, no el texto plano
+                    user.setRol(rol);
 
+                    // 3. Mapeo del ID de Empleado
+                    user.setIdEmpleadoFk(rs.getInt("id_empleado_fk"));
+                } else {
+                    System.out.println("⚠️ Contraseña incorrecta para usuario: " + usuario);
+                }
             } else {
-                System.out.println("⚠️ Credenciales incorrectas para: " + usuario);
+                System.out.println("⚠️ Usuario no encontrado: " + usuario);
             }
 
         } catch (SQLException e) {

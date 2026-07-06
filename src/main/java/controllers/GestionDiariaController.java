@@ -1,10 +1,7 @@
 package controllers;
 
 import claseslogicas.*;
-import dao.TurnoDAO;
 import dao.EmpleadoDAO;
-import dao.visitaDAO;
-import dao.FacturaDAO;
 
 import java.net.URL;
 import java.time.LocalDate;
@@ -29,8 +26,11 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.beans.property.SimpleStringProperty;
 import utilidades.AlertaUtil;
+import service.TurnoService;
 
 public class GestionDiariaController implements Initializable {
+
+    private boolean esGerente;
 
     @FXML
     private DatePicker dpFecha;
@@ -63,14 +63,13 @@ public class GestionDiariaController implements Initializable {
     @FXML
     private Button btnFacturar;
 
-    private final TurnoDAO turnoDAO = new TurnoDAO();
     private final EmpleadoDAO empleadoDAO = new EmpleadoDAO();
-    private final visitaDAO visitaDAO = new visitaDAO();
+    private final TurnoService turnoService = new TurnoService();
     private ObservableList<Turno> listaTurnos = FXCollections.observableArrayList();
-    private final FacturaDAO facturaDAO = new FacturaDAO();
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
+        aplicarPermisos();
         configurarColumnas();
         tvTurnos.setItems(listaTurnos);
         cargarEstilistasFiltro();
@@ -159,7 +158,7 @@ public class GestionDiariaController implements Initializable {
         }
 
         try {
-            List<Turno> turnos = turnoDAO.obtenerTurnosFiltrados(fecha, idEmpleado);
+            List<Turno> turnos = turnoService.obtenerAgenda(fecha, idEmpleado);
             listaTurnos.clear();
             listaTurnos.addAll(turnos);
         } catch (SQLException e) {
@@ -191,24 +190,36 @@ public class GestionDiariaController implements Initializable {
             return;
         }
 
-        if (!turnoSeleccionado.puedeCambiarA(nuevoEstado)) {
-            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Transición inválida", null, "No se puede cambiar de " + turnoSeleccionado.getEstadoTurno().getNombre() + " a " + nuevoEstado.getNombre());
-            return;
-        }
-
         try {
-            turnoDAO.actualizarEstado(turnoSeleccionado.getIdTurno(), nuevoEstado, motivo);
-
-            turnoSeleccionado.setEstadoTurno(nuevoEstado);
-            turnoSeleccionado.setMotivoLog(motivo);
+            turnoService.cambiarEstado(turnoSeleccionado, nuevoEstado, motivo);
             tvTurnos.refresh();
             AlertaUtil.mostrarAlerta(AlertType.INFORMATION, "Éxito", null, "Turno actualizado a " + nuevoEstado.getNombre());
+        } catch (IllegalStateException e) {
+            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Transición inválida", null, e.getMessage());
         } catch (SQLException e) {
             AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error de BD", null, "No se pudo actualizar el estado del turno.");
             e.printStackTrace();
         }
     }
+    /**
+     * HU14 Filtrar turnos por estilista: Gerente únicamente.
+     * HU17 Estado de turno (Confirmar/Finalizar/Facturar/Cancelar): Gerente únicamente.
+     * Recepcionista solo puede "Consultar" la agenda (HU12), sin actuar sobre los turnos.
+     */
+    private void aplicarPermisos() {
+        esGerente = utilidades.PermisosUtil.esGerente();
+        cbEstilistaFiltro.setDisable(!esGerente);
+    }
+
     private void actualizarEstadoBotones(Turno turno) {
+        if (!esGerente) {
+            btnFinalizar.setDisable(true);
+            btnCancelar.setDisable(true);
+            btnConfirmar.setDisable(true);
+            btnFacturar.setDisable(true);
+            return;
+        }
+
         if (turno == null || turno.getEstadoTurno() == null) {
             btnFinalizar.setDisable(true);
             btnCancelar.setDisable(true);
@@ -223,22 +234,7 @@ public class GestionDiariaController implements Initializable {
         btnConfirmar.setDisable(!turno.puedeCambiarA(EstadoTurno.CONFIRMADO));
 
         // Activación del botón Facturar solo si está FINALIZADO, tiene visita y NO tiene factura
-        if (turno.getEstadoTurno() == EstadoTurno.FINALIZADO) {
-            Visita visita = visitaDAO.obtenerVisitaPorTurno(turno.getIdTurno());
-            boolean tieneVisita = visita != null;
-
-            boolean sinFactura = true;
-            try {
-                Factura facturaExistente = facturaDAO.obtenerPorTurno(turno.getIdTurno());
-                sinFactura = (facturaExistente == null);
-            } catch (SQLException e) {
-                System.err.println("Error al verificar factura existente: " + e.getMessage());
-            }
-
-            btnFacturar.setDisable(!(tieneVisita && sinFactura));
-        } else {
-            btnFacturar.setDisable(true);
-        }
+        btnFacturar.setDisable(!turnoService.puedeFacturar(turno));
     }
 
     @FXML
@@ -255,7 +251,7 @@ public class GestionDiariaController implements Initializable {
             return;
         }
 
-        Visita visita = visitaDAO.obtenerVisitaPorTurno(turnoSeleccionado.getIdTurno());
+        Visita visita = turnoService.obtenerVisitaDeTurno(turnoSeleccionado.getIdTurno());
 
         if (visita != null) {
             abrirPantallaFacturacion(visita.getIdVisita());

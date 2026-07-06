@@ -5,7 +5,7 @@ import controllers.EliminarClienteController;
 import controllers.HistorialClienteController;
 import controllers.ModificarClienteController;
 import controllers.CargarVisitaController;
-import dao.ClienteDAO;
+import service.ClienteService;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -23,14 +23,32 @@ public class FichaClienteController {
     @FXML private TextField txtNombre;
     @FXML private TextField txtTelefono;
     @FXML private TextField txtFechaAlta;
+    @FXML private Button btnModificar;
+    @FXML private Button btnEliminar;
+    @FXML private Button btnVerHistorial;
+    @FXML private Button btnRegistrarVisita;
 
-    private final ClienteDAO clienteDAO = new ClienteDAO();
+    private final ClienteService clienteService = new ClienteService();
     private Cliente clienteActual;
 
     @FXML
     public void initialize() {
         cmbTipoDocumento.getItems().addAll("DNI", "CUIT", "Pasaporte");
         cmbTipoDocumento.getSelectionModel().selectFirst();
+        aplicarPermisos();
+    }
+
+    /**
+     * RD1.4 Actualizar cliente: Gerente y Recepcionista sí, Estilista no.
+     * RD1.5 Eliminar cliente: Gerente únicamente.
+     * RD1.7 Historial por cliente: Gerente y Estilista sí, Recepcionista no.
+     * RD1.9 Registrar visita: Estilista únicamente.
+     */
+    private void aplicarPermisos() {
+        btnModificar.setDisable(utilidades.PermisosUtil.esEstilista());
+        btnEliminar.setDisable(!utilidades.PermisosUtil.esGerente());
+        btnVerHistorial.setDisable(utilidades.PermisosUtil.esRecepcionista());
+        btnRegistrarVisita.setDisable(!utilidades.PermisosUtil.esEstilista());
     }
 
     @FXML
@@ -44,7 +62,7 @@ public class FichaClienteController {
         }
 
         try {
-            clienteActual = clienteDAO.consultarPorDocumentoCompleto(tipoDoc, nroDoc);
+            clienteActual = clienteService.buscarPorDocumento(tipoDoc, nroDoc);
 
             if (clienteActual != null) {
                 txtNombre.setText(clienteActual.getNombreCompleto());

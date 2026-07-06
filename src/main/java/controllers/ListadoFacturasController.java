@@ -1,7 +1,7 @@
 package controllers;
 
 import claseslogicas.*;
-import dao.FacturaDAO;
+import service.FacturaService;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -16,6 +16,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 public class ListadoFacturasController {
+
+    private final FacturaService facturaService = new FacturaService();
 
     @FXML private DatePicker dpDesde;
     @FXML private DatePicker dpHasta;
@@ -72,7 +74,7 @@ public class ListadoFacturasController {
             return;
         }
 
-        List<Factura> resultado = FacturaDAO.obtenerPorRango(desde, hasta);
+        List<Factura> resultado = facturaService.obtenerPorRango(desde, hasta);
 
         todasLasFacturas.setAll(resultado);
         facturasFiltradas = new FilteredList<>(todasLasFacturas, f -> true);
