@@ -27,8 +27,12 @@ import javafx.stage.Stage;
 import javafx.beans.property.SimpleStringProperty;
 import utilidades.AlertaUtil;
 import service.TurnoService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GestionDiariaController implements Initializable {
+
+    private static final Logger log = LoggerFactory.getLogger(GestionDiariaController.class);
 
     private boolean esGerente;
 
@@ -252,6 +256,13 @@ public class GestionDiariaController implements Initializable {
 
         } catch (SQLException e) {
             // Manejo de error defensivo si falla la consulta
+            log.error("Error de BD al actualizar estado de botones para turno {}", turno.getIdTurno(), e);
+            btnFacturar.setDisable(true);
+        } catch (RuntimeException e) {
+            // Antes esto se perdía sin dejar rastro: cualquier excepción no-SQL
+            // (NPE, etc.) abortaba el método ANTES de llegar a btnFacturar.setDisable(...),
+            // dejando el botón deshabilitado para siempre sin ningún log.
+            log.error("Excepción inesperada al evaluar estado de botones para turno {}", turno.getIdTurno(), e);
             btnFacturar.setDisable(true);
         }
     }

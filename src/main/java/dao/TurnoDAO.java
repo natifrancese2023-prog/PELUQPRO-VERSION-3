@@ -82,7 +82,7 @@ public class TurnoDAO {
             try (PreparedStatement psServicio = conn.prepareStatement(sqlServicio)) {
                 for (Servicio servicio : turno.getServicios()) {
                     psServicio.setInt(1, turno.getIdTurno());
-                    psServicio.setInt(2, servicio.getIdTipoServicio());
+                    psServicio.setInt(2, servicio.getIdServicio());
                     psServicio.addBatch();
                 }
                 psServicio.executeBatch();
@@ -157,7 +157,7 @@ public class TurnoDAO {
                     int idServicio = rs.getInt("id_servicio");
                     if (idServicio != 0) {
                         Servicio servicio = new Servicio();
-                        servicio.setIdTipoServicio(idServicio);
+                        servicio.setIdServicio(idServicio);
                         servicio.setNombreServicio(rs.getString("servicio_nombre"));
                         turno.getServicios().add(servicio);
                     }

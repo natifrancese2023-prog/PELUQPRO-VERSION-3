@@ -12,13 +12,11 @@ public class Factura {
     private int idTurno;
     private List<Servicio> servicios;
     private List<DetalleFactura> detalles;
-    private BigDecimal montoTotal;        // ✅ ahora BigDecimal
+    private BigDecimal montoTotal;
     private String formaPago;
     private String metodoPago;
     private LocalDateTime fechaHora;
-    private String estado;
-    private String estadoFacturaNombre;
-    private EstadoFactura estadoFactura;
+    private EstadoFactura estadoFactura;   // ✅ único campo para estado
     private Cliente cliente;
     private String clienteDocumento;
 
@@ -30,12 +28,14 @@ public class Factura {
         this.formaPago = formaPago;
         this.fechaHora = LocalDateTime.now();
         this.detalles = new ArrayList<>();
-        this.montoTotal = BigDecimal.ZERO; // inicializar en 0
+        this.montoTotal = BigDecimal.ZERO;
+        this.estadoFactura = EstadoFactura.PENDIENTE; // estado inicial
     }
 
     public Factura() {
         this.detalles = new ArrayList<>();
         this.montoTotal = BigDecimal.ZERO;
+        this.estadoFactura = EstadoFactura.PENDIENTE; // estado inicial
     }
 
     // ===================== GETTERS =====================
@@ -44,14 +44,17 @@ public class Factura {
     public int getIdCliente() { return idCliente; }
     public int getIdTurno() { return idTurno; }
     public List<Servicio> getServicios() { return servicios; }
-    public BigDecimal getMontoTotal() { return montoTotal; }   // ✅ BigDecimal
+    public BigDecimal getMontoTotal() { return montoTotal; }
     public String getMetodoPago() { return metodoPago; }
     public LocalDateTime getFechaHora() { return fechaHora; }
-    public String getEstado() { return estado; }
     public EstadoFactura getEstadoFactura() { return estadoFactura; }
     public Cliente getCliente() { return cliente; }
     public List<DetalleFactura> getDetalles() { return detalles; }
-    public String getEstadoFacturaNombre() { return estadoFacturaNombre; }
+    public String getClienteDocumento() { return clienteDocumento; }
+    public String getEstadoFacturaNombre() {
+        return estadoFactura != null ? estadoFactura.getNombre() : "N/A";
+    }
+
 
     // ===================== SETTERS =====================
 
@@ -59,13 +62,12 @@ public class Factura {
     public void setIdCliente(int idCliente) { this.idCliente = idCliente; }
     public void setIdTurno(int idTurno) { this.idTurno = idTurno; }
     public void setServicios(List<Servicio> servicios) { this.servicios = servicios; }
-    public void setMontoTotal(BigDecimal montoTotal) { this.montoTotal = montoTotal; } // ✅ BigDecimal
+    public void setMontoTotal(BigDecimal montoTotal) { this.montoTotal = montoTotal; }
     public void setMetodoPago(String metodoPago) { this.metodoPago = metodoPago; }
     public void setFechaHora(LocalDateTime fechaHora) { this.fechaHora = fechaHora; }
-    public void setEstado(String estado) { this.estado = estado; }
-    public void setEstadoFacturaNombre(String estadoFacturaNombre) { this.estadoFacturaNombre = estadoFacturaNombre; }
     public void setEstadoFactura(EstadoFactura estadoFactura) { this.estadoFactura = estadoFactura; }
     public void setCliente(Cliente cliente) { this.cliente = cliente; }
+    public void setClienteDocumento(String clienteDocumento) { this.clienteDocumento = clienteDocumento; }
 
     // ===================== MÉTODOS =====================
 
@@ -85,8 +87,7 @@ public class Factura {
                 "\nForma de pago: " + formaPago +
                 "\nMétodo de pago: " + metodoPago +
                 "\nTotal: $" + (montoTotal != null ? montoTotal.setScale(2) : "0.00") +
-                "\nEstado: " + (estadoFacturaNombre != null ? estadoFacturaNombre : "N/A") +
+                "\nEstado: " + (estadoFactura != null ? estadoFactura.getNombre() : "N/A") +
                 "\nFecha: " + (fechaHora != null ? fechaHora.toString() : "N/A");
     }
 }
-

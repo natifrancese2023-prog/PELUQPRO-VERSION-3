@@ -33,7 +33,7 @@ public class Visita {
         this.serviciosRealizados = new java.util.ArrayList<>();
         for (Integer id : idsServicios) {
             Servicio servicio = new Servicio();
-            servicio.setIdTipoServicio(id);
+            servicio.setIdServicio(id);
             this.serviciosRealizados.add(servicio);
         }
     }

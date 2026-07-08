@@ -3,7 +3,7 @@ package claseslogicas;
 public class Servicio {
 
 
-    private int idTipoServicio; // PK
+    private int idServicio; // PK
     private String nombreServicio;
     private String descripcion;
     private int duracionMinutos;
@@ -19,7 +19,7 @@ public class Servicio {
 
 
     public Servicio(int idTipoServicio, String nombreServicio, String descripcion, int duracionMinutos, double precio) {
-        this.idTipoServicio = idTipoServicio;
+        this.idServicio = idTipoServicio;
         this.nombreServicio = nombreServicio;
         this.descripcion = descripcion;
         this.duracionMinutos = duracionMinutos;
@@ -39,8 +39,8 @@ public class Servicio {
 
     // --- GETTERS Y SETTERS ---
 
-    public int getIdTipoServicio() { return idTipoServicio; }
-    public void setIdTipoServicio(int idTipoServicio) { this.idTipoServicio = idTipoServicio; }
+    public int getIdTipoServicio() { return idServicio; }
+    public void setIdTipoServicio(int idTipoServicio) { this.idServicio = idTipoServicio; }
 
     public String getNombreServicio() { return nombreServicio; }
     public void setNombreServicio(String nombreServicio) { this.nombreServicio = nombreServicio; }
@@ -54,7 +54,7 @@ public class Servicio {
     public double getPrecio() { return precio; }
     public void setPrecio(double precio) { this.precio = precio; }
 
-    public int getIdServicio() { return  idTipoServicio;
+    public int getIdServicio() { return  idServicio;
     }
 
     public int getIdTurno() {
@@ -65,12 +65,6 @@ public class Servicio {
         this.idTurno = idTurno;
     }
 
-    // En tu clase Servicio.java, añade/asegura estos métodos:
-
-
-
-    // 👁️ AGREGA ESTE SETTER si no lo tenías para evitar errores de bindings:
-    public void setIdServicio(int idServicio) {
-        this.idTipoServicio = idServicio;
+    public void setIdServicio(Integer id) {
     }
 }

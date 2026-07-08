@@ -49,6 +49,7 @@ public class visitaDAO {
                     "JOIN servicios ts ON ds.id_servicio = ts.id_servicio " +
                     "WHERE ds.id_visita = ?";
 
+
     public boolean guardarNuevaVisita(Cliente cliente, List<ServicioTemp> servicios, int idEstilista, int idTurno) {
         if (servicios.isEmpty() || cliente == null) {
             log.warn("No hay servicios o cliente seleccionado para guardar.");
@@ -63,10 +64,22 @@ public class visitaDAO {
                 conn.rollback();
                 return false;
             }
-
             new TurnoDAO().actualizarEstadoTurno(conn, idTurno, EstadoTurno.FINALIZADO.getId());
+
+// 👇 Generar factura pendiente automáticamente
+            FacturaDAO facturaDAO = new FacturaDAO();
+            Factura facturaPendiente = new Factura();
+            facturaPendiente.setCliente(cliente);
+            facturaPendiente.setEstadoFactura(EstadoFactura.PENDIENTE);
+
+
+// ⚠️ Como tu método requiere idTurno e idMetodoPago, pasalos explícitamente
+            int idMetodoPago = MetodoPagoDAO.obtenerPorDefecto(conn); // o el que definas como default
+            facturaDAO.guardarFactura(facturaPendiente, idTurno, idMetodoPago);
+
             conn.commit();
             return true;
+
 
         } catch (SQLException e) {
             log.error("Error de transacción al guardar visita cliente={} turno={}",
@@ -119,16 +132,17 @@ public class visitaDAO {
         }
         return null;
     }
-
     private boolean insertarDetalleServicios(Connection conn, int idVisita, List<ServicioTemp> servicios) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(INSERT_DETALLE_SERVICIO)) {
             for (ServicioTemp temp : servicios) {
-                int idTipoServicio = obtenerIdTipoServicio(conn, temp.getServicio());
-                if (idTipoServicio == -1) {
-                    throw new SQLException("Error al obtener ID de servicio para: " + temp.getServicio());
+                // 👇 traducimos el nombre a ID
+                int idServicio = obtenerIdTipoServicio(conn, temp.getServicio());
+                if (idServicio == -1) {
+                    throw new SQLException("No se encontró el servicio: " + temp.getServicio());
                 }
+
                 ps.setInt(1, idVisita);
-                ps.setInt(2, idTipoServicio);
+                ps.setInt(2, idServicio);
                 ps.setString(3, temp.getObservaciones());
                 ps.addBatch();
             }
@@ -207,7 +221,7 @@ public class visitaDAO {
                     // Extraemos los IDs de servicios para pasárselos al constructor
                     List<Integer> idServicios = new ArrayList<>();
                     for (Servicio s : servicios) {
-                        idServicios.add(s.getIdTipoServicio());
+                        idServicios.add(s.getIdServicio());
                     }
 
                     // 3. Instanciar el objeto utilizando su constructor correcto de 4 parámetros
@@ -275,7 +289,7 @@ public class visitaDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Servicio s = new Servicio();
-                    s.setIdTipoServicio(rs.getInt("id_servicio"));
+                    s.setIdServicio(rs.getInt("id_servicio"));
                     s.setNombreServicio(rs.getString("nombre_servicio"));
                     s.setPrecio(rs.getDouble("precio"));
                     servicios.add(s);

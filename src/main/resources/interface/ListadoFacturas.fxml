@@ -39,5 +39,13 @@
     <HBox alignment="CENTER_RIGHT">
         <Button fx:id="btnVerPDF" text="📄 Ver Factura PDF" onAction="#handleVerPDF"/>
     </HBox>
+    <!-- Acciones sobre factura -->
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button fx:id="btnMarcarPagada" text="✔ Marcar Pagada" onAction="#handleMarcarPagada"/>
+        <Button fx:id="btnCancelarFactura" text="✖ Cancelar" onAction="#handleCancelarFactura"/>
+        <Label text="Filtrar por estado:"/>
+        <ComboBox fx:id="cmbFiltroEstado" onAction="#handleFiltrarPorEstado"/>
+    </HBox>
+
 
 </VBox>

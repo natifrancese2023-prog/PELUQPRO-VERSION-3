@@ -89,7 +89,25 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
     private void cargarTurnosDelCliente(int idCliente) {
         try {
             List<Turno> turnos = turnoService.obtenerTurnosPorCliente(idCliente);
-            cmbTurnoCliente.setItems(FXCollections.observableArrayList(turnos));
+
+
+            List<Turno> turnosConfirmados = turnos.stream()
+                    .filter(t -> t.getEstadoTurno() == EstadoTurno.CONFIRMADO)
+                    .toList();
+
+            if (turnosConfirmados.isEmpty()) {
+                cmbTurnoCliente.setItems(FXCollections.observableArrayList());
+                AlertaUtil.mostrarAlerta(
+                        Alert.AlertType.WARNING,
+                        "Sin turnos confirmados",
+                        null,
+                        "Este cliente no tiene turnos en estado 'Confirmado'. " +
+                                "Debe confirmar un turno antes de poder registrar la visita."
+                );
+                return;
+            }
+
+            cmbTurnoCliente.setItems(FXCollections.observableArrayList(turnosConfirmados));
             cmbTurnoCliente.getSelectionModel().selectFirst();
         } catch (SQLException e) {
             AlertaUtil.mostrarAlerta(
@@ -119,10 +137,11 @@ public class CargarVisitaController implements Initializable, ConsultaClienteCon
 
             return;
         }
+        String nombreServicio = cmbTipoServicio.getSelectionModel().getSelectedItem(); // 👈 esto devuelve un String
 
         ServicioTemp nuevoServicio = new ServicioTemp(
                 LocalDate.now(),
-                servicio,
+                nombreServicio,
                 nombreEstilistaTabla,
                 observaciones,
                 "Pendiente"

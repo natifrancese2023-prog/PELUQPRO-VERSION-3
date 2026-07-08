@@ -1,87 +1,231 @@
-package dao;
+package controllers;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import claseslogicas.*;
+import dao.EmpleadoDAO;
+import javafx.collections.ObservableList;
+import service.TurnoService;
+import service.VisitaService;
+import javafx.collections.FXCollections;
+import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.stage.Stage;
+import utilidades.SesionManager;
 
-// Importación de la clase de modelo, que está en 'claseslogicas'
-import claseslogicas.Usuario;
+import java.net.URL;
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.ResourceBundle;
+import utilidades.AlertaUtil;
 
-public class UsarioDAOTest {
+import static utilidades.AlertaUtil.mostrarAlerta;
 
-    // Instancia de la clase a probar
-    private static UsuarioDao usuarioDao;
+public class CargarVisitaController implements Initializable, ConsultaClienteController.ClienteDependiente {
 
-    // --- DATOS DE PRUEBA ESTATICOS ---
-    // AJUSTA ESTOS VALORES para un usuario que SÍ exista en tu base de datos de XAMPP
-    private static final String USUARIO_VALIDO = "admin";
-    private static final String CONTRASENA_VALIDA = "1234";
+    private final VisitaService visitaService = new VisitaService();
+    private final TurnoService turnoService = new TurnoService();
+    private final EmpleadoDAO empleadoDAO = new EmpleadoDAO();
 
-    private static final String USUARIO_INVALIDO = "usuario_fake_123";
+    private Cliente clienteActual;
+    private Usuario estilistaLogueado;
+    private String nombreEstilistaTabla;
+    private int idTurno;
 
-    /**
-     * Configuración: Se ejecuta una sola vez antes de que comiencen todos los tests.
-     * Inicializa la instancia del DAO.
-     */
-    @BeforeAll
-    static void setUp() {
-        // Inicialización del DAO
-        usuarioDao = new UsuarioDao();
+    private final ObservableList<ServicioTemp> listaServicios = FXCollections.observableArrayList();
+
+    @FXML private TextField txtDocumentoCliente;
+    @FXML private TextField txtNombreCliente;
+    @FXML private ComboBox<String> cmbTipoServicio;
+    @FXML private TextField txtObservacionesServicio;
+    @FXML private ComboBox<Turno> cmbTurnoCliente;
+
+    @FXML private TableView<ServicioTemp> tblServicios;
+    @FXML private TableColumn<ServicioTemp, LocalDate> colFecha;
+    @FXML private TableColumn<ServicioTemp, String> colServicio;
+    @FXML private TableColumn<ServicioTemp, String> colEstilista;
+    @FXML private TableColumn<ServicioTemp, String> colObservaciones;
+    @FXML private Button btnGuardarVisita;
+
+    @Override
+    public void initialize(URL url, ResourceBundle rb) {
+        estilistaLogueado = SesionManager.getInstance().getUsuarioLogueado();
+
+        if (estilistaLogueado == null) {
+            mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Error de Sesión",
+                    null,
+                    "No hay un estilista logueado. Cierre e ingrese de nuevo."
+            );
+
+            btnGuardarVisita.setDisable(true);
+            return;
+        }
+
+        nombreEstilistaTabla = estilistaLogueado.getUsuario();
+
+        cmbTipoServicio.getItems().addAll(visitaService.obtenerNombresServicios());
+
+        colFecha.setCellValueFactory(new PropertyValueFactory<>("fecha"));
+        colServicio.setCellValueFactory(new PropertyValueFactory<>("servicio"));
+        colEstilista.setCellValueFactory(new PropertyValueFactory<>("estilista"));
+        colObservaciones.setCellValueFactory(new PropertyValueFactory<>("observaciones"));
+
+        tblServicios.setItems(listaServicios);
     }
 
-    /**
-     * Prueba 1: Caso Exitoso (Credenciales Correctas)
-     * Espera: Un objeto Usuario no nulo y con el nombre de usuario correcto.
-     */
-    @Test
-    void testValidarUsuario_CredencialesValidas() {
-        System.out.println("Ejecutando: testValidarUsuario_CredencialesValidas");
-
-        Usuario resultado = usuarioDao.validarUsuario(USUARIO_VALIDO, CONTRASENA_VALIDA);
-
-        // 1. Verifica que el resultado NO es nulo (el usuario fue encontrado)
-        assertNotNull(resultado, "El método debe retornar un objeto Usuario para credenciales válidas.");
-
-        // 2. Verifica que los datos del usuario coinciden
-        assertEquals(USUARIO_VALIDO, resultado.getUsuario(), "El nombre de usuario devuelto debe coincidir con el consultado.");
-        // Opcional: Asegúrate de que la ID es mayor a 0 si la ID es un campo de DB
-        assertTrue(resultado.getId() > 0, "El ID del usuario debe ser mayor a 0.");
+    @Override
+    public void setCliente(Cliente cliente) {
+        this.clienteActual = cliente;
+        if (cliente != null) {
+            txtDocumentoCliente.setText(cliente.getNombreTipoDocumento() + ": " + cliente.getNumeroDocumento());
+            txtNombreCliente.setText(cliente.getNombreCompleto());
+            cargarTurnosDelCliente(cliente.getIdCliente());
+        }
     }
 
-    /**
-     * Prueba 2: Caso Fallido (Credenciales Inexistentes)
-     * Espera: Un resultado nulo (no se encontró el usuario).
-     */
-    @Test
-    void testValidarUsuario_UsuarioInexistente() {
-        System.out.println("Ejecutando: testValidarUsuario_UsuarioInexistente");
+    private void cargarTurnosDelCliente(int idCliente) {
+        try {
+            List<Turno> turnos = turnoService.obtenerTurnosPorCliente(idCliente);
 
-        Usuario resultado = usuarioDao.validarUsuario(USUARIO_INVALIDO, CONTRASENA_VALIDA);
+            // Solo se puede registrar una visita sobre un turno CONFIRMADO
+            // (ver validación en handleGuardarVisita). Si mostramos TODOS
+            // los turnos y auto-seleccionamos el primero (el más antiguo,
+            // por el ORDER BY fecha,hora_inicio del DAO), casi siempre cae
+            // en uno que no es CONFIRMADO, y el usuario ve "El turno debe
+            // estar en estado 'Confirmado'" sin entender por qué, porque
+            // no se dio cuenta de que tenía que cambiar la selección.
+            List<Turno> turnosConfirmados = turnos.stream()
+                    .filter(t -> t.getEstadoTurno() == EstadoTurno.CONFIRMADO)
+                    .toList();
 
-        // Verifica que el resultado es nulo
-        assertNull(resultado, "El método debe retornar null cuando el usuario no existe en la DB.");
+            if (turnosConfirmados.isEmpty()) {
+                cmbTurnoCliente.setItems(FXCollections.observableArrayList());
+                AlertaUtil.mostrarAlerta(
+                        Alert.AlertType.WARNING,
+                        "Sin turnos confirmados",
+                        null,
+                        "Este cliente no tiene turnos en estado 'Confirmado'. " +
+                                "Debe confirmar un turno antes de poder registrar la visita."
+                );
+                return;
+            }
+
+            cmbTurnoCliente.setItems(FXCollections.observableArrayList(turnosConfirmados));
+            cmbTurnoCliente.getSelectionModel().selectFirst();
+        } catch (SQLException e) {
+            AlertaUtil.mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Error de BD",
+                    null,
+                    "No se pudieron cargar los turnos del cliente."
+            );
+
+
+            e.printStackTrace();
+        }
     }
 
-    /**
-     * Prueba 3: Caso Fallido (Contraseña Incorrecta)
-     * Espera: Un resultado nulo (no se encontró el registro con esa combinación).
-     */
-    @Test
-    void testValidarUsuario_ContrasenaIncorrecta() {
-        System.out.println("Ejecutando: testValidarUsuario_ContrasenaIncorrecta");
+    @FXML
+    private void handleAgregarServicio() {
+        String servicio = cmbTipoServicio.getValue();
+        String observaciones = txtObservacionesServicio.getText();
 
-        Usuario resultado = usuarioDao.validarUsuario(USUARIO_VALIDO, "contrasena_erronea_y_larga");
+        if (servicio == null || servicio.isEmpty()) {
+            mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Servicio Faltante",
+                    null,
+                    "Debe seleccionar un tipo de servicio."
+            );
 
-        // Verifica que el resultado es nulo, ya que la contraseña es incorrecta
-        assertNull(resultado, "El método debe retornar null cuando la contraseña es incorrecta para el usuario válido.");
+            return;
+        }
+
+        ServicioTemp nuevoServicio = new ServicioTemp(
+                LocalDate.now(),
+                servicio,
+                nombreEstilistaTabla,
+                observaciones,
+                "Pendiente"
+        );
+
+        listaServicios.add(nuevoServicio);
+        cmbTipoServicio.getSelectionModel().clearSelection();
+        txtObservacionesServicio.clear();
     }
 
-    /**
-     * Limpieza (Opcional): Se ejecuta una sola vez al final.
-     */
-    @AfterAll
-    static void tearDown() {
-        // Aquí puedes realizar limpieza si tus tests modifican la base de datos (por ejemplo, eliminando registros temporales).
+    @FXML
+    private void handleGuardarVisita() {
+        if (clienteActual == null || estilistaLogueado == null) {
+            AlertaUtil.mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Error de Datos",
+                    null,
+                    "Falta el cliente o el estilista logueado."
+            );
+
+            return;
+        }
+
+        if (listaServicios.isEmpty()) {
+            AlertaUtil.mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Sin Servicios",
+                    null,
+                    "Debe agregar al menos un servicio a la visita."
+            );
+
+
+            return;
+        }
+
+        Turno turnoSeleccionado = cmbTurnoCliente.getValue();
+        if (turnoSeleccionado == null) {
+            AlertaUtil.mostrarAlerta(
+                    Alert.AlertType.ERROR,
+                    "Turno no seleccionado",
+                    null,
+                    "Debe seleccionar un turno para registrar la visita."
+            );
+
+
+            return;
+        }
+
+        if (turnoSeleccionado.getEstadoTurno() != EstadoTurno.CONFIRMADO) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Estado inválido", null, "El turno debe estar en estado 'Confirmado' para registrar la visita.");
+            return;
+        }
+
+        idTurno = turnoSeleccionado.getIdTurno();
+
+        int idEstilista = estilistaLogueado.getIdEmpleadoFk();
+
+        // registrarVisita ya marca el turno como FINALIZADO dentro de su
+        // propia transacción (junto con el guardado de la visita) — no hace
+        // falta un cambiarEstado() aparte acá; antes había uno redundante
+        // que hacía un segundo UPDATE innecesario sobre el mismo turno.
+        boolean exito = visitaService.registrarVisita(clienteActual, listaServicios, idEstilista, idTurno);
+
+        if (exito) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", null,"Visita y servicios guardados correctamente.");
+            cerrarVentana();
+        } else {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null,"Ocurrió un error al guardar la visita.");
+        }
     }
+
+    @FXML
+    private void handleVolver() {
+        cerrarVentana();
+    }
+
+    private void cerrarVentana() {
+        Stage stage = (Stage) btnGuardarVisita.getScene().getWindow();
+        stage.close();
+    }
+
 }
