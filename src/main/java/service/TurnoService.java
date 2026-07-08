@@ -11,18 +11,12 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Reglas de negocio del dominio Turno.
- * <p>
- * Antes de esta clase, {@code TurnoDAO.obtenerTurnosDisponibles()} coordinaba
- * directamente 3 DAOs distintos (HorarioAtencionDAO, EmpleadoDAO, y el propio
- * TurnoDAO para validarDisponibilidad) — un DAO no debería orquestar otros
- * DAOs, esa es la responsabilidad de un Service. Y {@code GestionDiariaController}
- * tenía la lógica de "¿puede facturarse este turno?" (Finalizado + tiene
- * visita + no tiene factura) coordinando visitaDAO y FacturaDAO directo desde
- * un controller de UI.
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class TurnoService {
+
+    private static final Logger log = LoggerFactory.getLogger(TurnoService.class);
 
     private final TurnoDAO turnoDAO = new TurnoDAO();
     private final EmpleadoDAO empleadoDAO = new EmpleadoDAO();
@@ -32,12 +26,6 @@ public class TurnoService {
 
     private static final int INTERVALO_MINUTOS = 30;
 
-    /**
-     * Busca bloques horarios disponibles para agendar un turno, recorriendo
-     * el horario de atención del día en intervalos de 30 minutos y
-     * descartando los que no entran en el horario o que ya están ocupados.
-     * (Antes vivía en TurnoDAO.obtenerTurnosDisponibles()).
-     */
     public List<BloqueDisponible> buscarDisponibilidad(LocalDate fecha, int duracionTotalMinutos, Integer idEstilistaOpcional) throws SQLException {
         List<BloqueDisponible> disponibles = new ArrayList<>();
 
@@ -72,24 +60,15 @@ public class TurnoService {
         return disponibles;
     }
 
-    /**
-     * Registra un turno nuevo. Todo turno nace en estado PENDIENTE — esa
-     * regla ahora vive acá en vez de que cada pantalla que crea un turno
-     * tenga que acordarse de setearla (antes AltaTurnoController lo hacía
-     * "a mano" con setEstadoLogico, de forma redundante con lo que el DAO
-     * ya hardcodeaba en el INSERT).
-     */
     public boolean registrarTurno(Turno turno) throws SQLException {
         turno.setEstadoLogico(EstadoTurno.PENDIENTE);
+        log.info("Registrando turno cliente={} empleado={}", turno.getIdCliente(), turno.getIdEmpleado());
         return turnoDAO.insertarTurno(turno);
     }
-
-    /**
-     * Cambia el estado de un turno, validando primero que la transición sea
-     * válida según las reglas del propio modelo Turno
-     * ({@link Turno#puedeCambiarA(EstadoTurno)}). Si la transición no es
-     * válida, lanza IllegalStateException con un mensaje listo para mostrar.
-     */
+    // 🔹 Copia y pega esto dentro de TurnoService.java
+    public Turno obtenerPorId(int idTurno) throws SQLException {
+        return turnoDAO.obtenerPorId(idTurno);
+    }
     public void cambiarEstado(Turno turno, EstadoTurno nuevoEstado, String motivo) throws SQLException {
         if (!turno.puedeCambiarA(nuevoEstado)) {
             throw new IllegalStateException(
@@ -99,33 +78,41 @@ public class TurnoService {
         turnoDAO.actualizarEstado(turno.getIdTurno(), nuevoEstado, motivo);
         turno.setEstadoTurno(nuevoEstado);
         turno.setMotivoLog(motivo);
+        log.info("Estado de turno {} cambiado a {} con motivo={}", turno.getIdTurno(), nuevoEstado.getNombre(), motivo);
     }
-
-    /**
-     * Un turno se puede facturar si está FINALIZADO, tiene una visita
-     * registrada, y todavía no tiene una factura asociada. Antes esta
-     * coordinación (visitaDAO + FacturaDAO) vivía directo en
-     * GestionDiariaController.actualizarEstadoBotones().
-     */
     public boolean puedeFacturar(Turno turno) {
+        log.info("[DEBUG] === Evaluando puedeFacturar ===");
+        log.info("[DEBUG] turno null? {}", turno == null);
+        if (turno != null) {
+            log.info("[DEBUG] idTurno={} estado={} (hash={})",
+                    turno.getIdTurno(), turno.getEstadoTurno(),
+                    System.identityHashCode(turno.getEstadoTurno()));
+            log.info("[DEBUG] comparación == FINALIZADO: {}", turno.getEstadoTurno() == EstadoTurno.FINALIZADO);
+        }
+
         if (turno == null || turno.getEstadoTurno() != EstadoTurno.FINALIZADO) {
+            log.info("[DEBUG] CORTA por estado");
             return false;
         }
 
         Visita visita = visitaService.obtenerVisitaPorTurno(turno.getIdTurno());
+        log.info("[DEBUG] visita obtenida: {}", visita);
         if (visita == null) {
+            log.info("[DEBUG] CORTA por visita nula");
             return false;
         }
 
         try {
-            return facturaService.obtenerPorTurno(turno.getIdTurno()) == null;
+            Factura factura = facturaService.obtenerPorTurno(turno.getIdTurno());
+            log.info("[DEBUG] factura obtenida: {}", factura);
+            boolean resultado = factura == null;
+            log.info("[DEBUG] RESULTADO FINAL puedeFacturar = {}", resultado);
+            return resultado;
         } catch (SQLException e) {
-            System.err.println("Error al verificar factura existente: " + e.getMessage());
+            log.error("[DEBUG] EXCEPCIÓN al buscar factura turno={}", turno.getIdTurno(), e);
             return false;
         }
     }
-
-    /** Devuelve la visita asociada a un turno, o null si no tiene una registrada. */
     public Visita obtenerVisitaDeTurno(int idTurno) {
         return visitaService.obtenerVisitaPorTurno(idTurno);
     }
@@ -136,5 +123,15 @@ public class TurnoService {
 
     public List<Turno> obtenerTurnosPorCliente(int idCliente) throws SQLException {
         return turnoDAO.obtenerTurnosPorCliente(idCliente);
+    }
+
+    // 🔹 Nuevo: obtener todos los turnos
+    public List<Turno> obtenerTodos() {
+        return turnoDAO.obtenerTodos();
+    }
+
+    // 🔹 Opcional: validar existencia de cliente
+    public boolean clienteExiste(int idCliente) throws SQLException {
+        return turnoDAO.clienteExiste(idCliente);
     }
 }

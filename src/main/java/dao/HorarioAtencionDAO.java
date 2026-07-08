@@ -4,43 +4,40 @@ import claseslogicas.HorarioAtencion;
 import java.sql.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.sql.Time;
-import java.time.LocalTime;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HorarioAtencionDAO {
 
-    private final ConexionBD conexionBD = new ConexionBD();
+    private static final Logger log = LoggerFactory.getLogger(HorarioAtencionDAO.class);
 
     public HorarioAtencion obtenerHorarioPorDia(LocalDate fecha) throws SQLException {
-
         DayOfWeek dayOfWeek = fecha.getDayOfWeek();
         String diaSemanaSQL = mapearDiaASQL(dayOfWeek);
 
-
         String sql = "SELECT id, dia_semana, hora_apertura, hora_cierre FROM horario WHERE dia_semana = ?";
 
-        HorarioAtencion horario = null;
-
-        try (Connection conn = conexionBD.getConnection();
+        try (Connection conn = ConexionBD.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, diaSemanaSQL);
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                horario = new HorarioAtencion(
-                        rs.getInt("id"),
-                        rs.getString("dia_semana"),
-                        // Conversión de java.sql.Time a java.time.LocalTime
-                        rs.getTime("hora_apertura").toLocalTime(),
-                        rs.getTime("hora_cierre").toLocalTime()
-                );
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new HorarioAtencion(
+                            rs.getInt("id"),
+                            rs.getString("dia_semana"),
+                            rs.getTime("hora_apertura").toLocalTime(),
+                            rs.getTime("hora_cierre").toLocalTime()
+                    );
+                }
             }
+
         } catch (SQLException e) {
-            System.err.println("❌ Error al obtener horario por día: " + e.getMessage());
+            log.error("Error al obtener horario para día {} ({})", diaSemanaSQL, fecha, e);
             throw e;
         }
-        return horario;
+        return null;
     }
 
     private String mapearDiaASQL(DayOfWeek dayOfWeek) {

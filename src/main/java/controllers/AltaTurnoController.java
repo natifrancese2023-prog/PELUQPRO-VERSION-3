@@ -150,27 +150,17 @@ public class AltaTurnoController implements Initializable {
     // =========================================================================
 
     private void cargarServicios() {
-        try {
-            List<Servicio> todosServicios = servicioDAO.obtenerTodos();
-            lvServicios.setItems(FXCollections.observableArrayList(todosServicios));
+        List<Servicio> todosServicios = servicioDAO.obtenerTodos();
+        lvServicios.setItems(FXCollections.observableArrayList(todosServicios));
 
-            lvServicios.setCellFactory(lv -> new ListCell<Servicio>() {
-                @Override
-                protected void updateItem(Servicio item, boolean empty) {
-                    super.updateItem(item, empty);
-                    // Asumo que Servicio tiene getNombreConDuracion()
-                    setText(empty ? null : item.getNombreConDuracion());
-                }
-            });
-        } catch (SQLException e) {
-            AlertaUtil.mostrarAlerta(
-                    AlertType.ERROR,
-                    "Error de BD",
-                    null,
-                    "No se pudieron cargar los servicios: " + e.getMessage()
-            );
-
-        }
+        lvServicios.setCellFactory(lv -> new ListCell<Servicio>() {
+            @Override
+            protected void updateItem(Servicio item, boolean empty) {
+                super.updateItem(item, empty);
+                // Asumo que Servicio tiene getNombreConDuracion()
+                setText(empty ? null : item.getNombreConDuracion());
+            }
+        });
     }
 
     private void recalcularDuracion() {

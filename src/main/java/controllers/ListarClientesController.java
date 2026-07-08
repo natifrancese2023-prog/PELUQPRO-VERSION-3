@@ -31,10 +31,13 @@ public class ListarClientesController implements Initializable {
     @FXML private TableColumn<Cliente, String> colFechaAlta;
     @FXML private TableColumn<Cliente, Integer> colNumeroVisitas;
     @FXML private TableColumn<Cliente, Void> colAccion;
+    @FXML private TableColumn<Cliente, String> colEstado;
+    @FXML private ComboBox<String> cmbFiltroEstado;
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         configurarColumnas();
+        configurarFiltro();
         cargarDatosClientes();
     }
 
@@ -70,6 +73,9 @@ public class ListarClientesController implements Initializable {
             int cantidadVisitas = clienteService.contarVisitasPorIdCliente(cliente.getIdCliente());
             return new SimpleIntegerProperty(cantidadVisitas).asObject();
         });
+        colEstado.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().isActivo() ? "Activo" : "Inactivo")
+        );
 
         colAccion.setCellFactory(col -> new TableCell<>() {
             private final Button btnVer = new Button("Ver");
@@ -95,18 +101,28 @@ public class ListarClientesController implements Initializable {
             }
         });
     }
-
+    private void configurarFiltro() {
+        cmbFiltroEstado.getItems().addAll("Todos", "Activos", "Inactivos");
+        cmbFiltroEstado.getSelectionModel().select("Activos"); // por defecto
+        cmbFiltroEstado.setOnAction(e -> cargarDatosClientes());
+    }
     public void cargarDatosClientes() {
         try {
-            ObservableList<Cliente> listaClientes = FXCollections.observableArrayList(clienteService.obtenerTodos());
+            String filtro = cmbFiltroEstado.getValue();
+            ObservableList<Cliente> listaClientes;
+            if ("Activos".equals(filtro)) {
+                listaClientes = FXCollections.observableArrayList(clienteService.obtenerPorEstado(true));
+            } else if ("Inactivos".equals(filtro)) {
+                listaClientes = FXCollections.observableArrayList(clienteService.obtenerPorEstado(false));
+            } else {
+                listaClientes = FXCollections.observableArrayList(clienteService.obtenerTodos());
+            }
             tblClientes.setItems(listaClientes);
         } catch (Exception e) {
             AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", "Carga de clientes", "No se pudieron cargar los clientes: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    @FXML
+    }    @FXML
     public void handleRefrescarTabla(ActionEvent event) {
         cargarDatosClientes();
         System.out.println("Tabla de clientes refrescada.");

@@ -181,7 +181,6 @@ public class GestionDiariaController implements Initializable {
     private void handleConfirmarTurno(ActionEvent event) {
         cambiarEstadoTurno(EstadoTurno.CONFIRMADO, "Confirmar Turno", "Turno confirmado por recepción");
     }
-
     private void cambiarEstadoTurno(EstadoTurno nuevoEstado, String accion, String motivo) {
         Turno turnoSeleccionado = tvTurnos.getSelectionModel().getSelectedItem();
 
@@ -192,7 +191,16 @@ public class GestionDiariaController implements Initializable {
 
         try {
             turnoService.cambiarEstado(turnoSeleccionado, nuevoEstado, motivo);
+
+            // 🔄 FIX 2: Al cambiar con éxito, actualizamos el objeto en memoria para que la tabla cambie de color
+            turnoSeleccionado.setEstadoTurno(nuevoEstado);
+            turnoSeleccionado.setEstadoLogico(nuevoEstado);
+
             tvTurnos.refresh();
+
+            // 🔄 FIX 3: Forzar a los botones a recalcularse con el nuevo estado del turno
+            actualizarEstadoBotones(turnoSeleccionado);
+
             AlertaUtil.mostrarAlerta(AlertType.INFORMATION, "Éxito", null, "Turno actualizado a " + nuevoEstado.getNombre());
         } catch (IllegalStateException e) {
             AlertaUtil.mostrarAlerta(AlertType.ERROR, "Transición inválida", null, e.getMessage());
@@ -210,7 +218,6 @@ public class GestionDiariaController implements Initializable {
         esGerente = utilidades.PermisosUtil.esGerente();
         cbEstilistaFiltro.setDisable(!esGerente);
     }
-
     private void actualizarEstadoBotones(Turno turno) {
         if (!esGerente) {
             btnFinalizar.setDisable(true);
@@ -228,15 +235,26 @@ public class GestionDiariaController implements Initializable {
             return;
         }
 
-        // Activación según lógica de transición
-        btnFinalizar.setDisable(!turno.puedeCambiarA(EstadoTurno.FINALIZADO));
-        btnCancelar.setDisable(!turno.puedeCambiarA(EstadoTurno.CANCELADO));
-        btnConfirmar.setDisable(!turno.puedeCambiarA(EstadoTurno.CONFIRMADO));
+        try {
+            // 🔄 FIX 1: Traer el turno fresco de la base de datos para validar con datos reales
+            Turno turnoFresco = turnoService.obtenerPorId(turno.getIdTurno());
+            if (turnoFresco == null) {
+                turnoFresco = turno; // Fallback por seguridad
+            }
 
-        // Activación del botón Facturar solo si está FINALIZADO, tiene visita y NO tiene factura
-        btnFacturar.setDisable(!turnoService.puedeFacturar(turno));
+            // Activación según lógica de transición clásica
+            btnFinalizar.setDisable(!turnoFresco.puedeCambiarA(EstadoTurno.FINALIZADO));
+            btnCancelar.setDisable(!turnoFresco.puedeCambiarA(EstadoTurno.CANCELADO));
+            btnConfirmar.setDisable(!turnoFresco.puedeCambiarA(EstadoTurno.CONFIRMADO));
+
+            // 🚀 Activación del botón Facturar con el turno actualizado
+            btnFacturar.setDisable(!turnoService.puedeFacturar(turnoFresco));
+
+        } catch (SQLException e) {
+            // Manejo de error defensivo si falla la consulta
+            btnFacturar.setDisable(true);
+        }
     }
-
     @FXML
     private void handleFacturarTurno() throws SQLException {
         Turno turnoSeleccionado = tvTurnos.getSelectionModel().getSelectedItem();

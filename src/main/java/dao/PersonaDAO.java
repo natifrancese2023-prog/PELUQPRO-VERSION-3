@@ -1,21 +1,16 @@
 package dao;
 
 import claseslogicas.Cliente;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Acceso a la tabla persona. Extraído de ClienteDAO. Incluye también los
- * combos de referencia de barrio/ciudad/provincia porque están directamente
- * ligados a los campos de dirección de persona (id_barrio es FK de persona).
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class PersonaDAO {
+
+    private static final Logger log = LoggerFactory.getLogger(PersonaDAO.class);
 
     private static final String SELECT_BARRIO_ID = "SELECT id_barrio FROM barrio WHERE nombre_barrio = ?";
     private static final String SELECT_PROVINCIAS = "SELECT nombre_provincia FROM provincia ORDER BY nombre_provincia";
@@ -40,7 +35,6 @@ public class PersonaDAO {
         }
     }
 
-    /** Inserta una persona y devuelve su id generado, o -1 si falló. */
     public int insertar(Connection conn, Cliente cliente, int idDocumento, int idBarrio) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(INSERT_PERSONA_SQL, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, cliente.getNombre());
@@ -53,9 +47,16 @@ public class PersonaDAO {
             ps.setInt(8, idBarrio);
             if (ps.executeUpdate() > 0) {
                 try (ResultSet rs = ps.getGeneratedKeys()) {
-                    if (rs.next()) return rs.getInt(1);
+                    if (rs.next()) {
+                        int idGenerado = rs.getInt(1);
+                        log.info("Persona insertada con id={}", idGenerado);
+                        return idGenerado;
+                    }
                 }
             }
+        } catch (SQLException e) {
+            log.error("Error al insertar persona cliente={}", cliente.getIdCliente(), e);
+            throw e;
         }
         return -1;
     }
@@ -71,6 +72,10 @@ public class PersonaDAO {
             ps.setInt(7, idBarrio);
             ps.setInt(8, cliente.getIdPersona());
             ps.executeUpdate();
+            log.info("Persona actualizada id={}", cliente.getIdPersona());
+        } catch (SQLException e) {
+            log.error("Error al actualizar persona id={}", cliente.getIdPersona(), e);
+            throw e;
         }
     }
 
@@ -78,6 +83,10 @@ public class PersonaDAO {
         try (PreparedStatement ps = conn.prepareStatement("UPDATE persona SET activo = false WHERE id_persona = ?")) {
             ps.setInt(1, idPersona);
             ps.executeUpdate();
+            log.info("Persona marcada inactiva id={}", idPersona);
+        } catch (SQLException e) {
+            log.error("Error al marcar persona inactiva id={}", idPersona, e);
+            throw e;
         }
     }
 

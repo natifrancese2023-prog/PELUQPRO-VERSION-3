@@ -12,14 +12,7 @@ public class EmpleadoDAO {
 
     private final ConexionBD conexionBD = new ConexionBD();
 
-    /**
-     * Arma un Empleado completo (con su Persona y Rol) a partir de una fila
-     * que trae las columnas de empleado + persona + roles ya unidas por JOIN.
-     * Antes este mismo bloque estaba copiado en obtenerEstilistas(),
-     * obtenerPorId() y obtenerEstilistasPorId(); un cambio en el modelo
-     * Empleado obligaba a editar las 3 copias, con el riesgo de que alguna
-     * quedara desactualizada.
-     */
+
     private Empleado mapearEmpleado(ResultSet rs) throws SQLException {
         Empleado emp = new Empleado();
         emp.setIdEmpleado(rs.getInt("id_empleado"));

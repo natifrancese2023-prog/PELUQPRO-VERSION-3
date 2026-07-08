@@ -4,27 +4,10 @@ import claseslogicas.Cliente;
 import dao.ClienteDAO;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.regex.Pattern;
 
-/**
- * Reglas de negocio del dominio Cliente: validación de formato de datos y
- * coordinación de alta/duplicado.
- * <p>
- * Antes, estas reglas vivían mezcladas con código de UI (JavaFX) directo en
- * los controllers:
- * <ul>
- *   <li>{@code AltaClienteController} validaba email/teléfono/documento con
- *       regex, y chequeaba duplicado antes de insertar.</li>
- *   <li>{@code ModificarClienteController} NO aplicaba las mismas regex al
- *       editar — un cliente podía tener un email válido al darlo de alta y
- *       después quedar con cualquier texto en ese campo al modificarlo, sin
- *       que nada lo detectara. Esa inconsistencia se cierra acá: ambos
- *       controllers ahora llaman a los mismos validadores.</li>
- * </ul>
- * Los controllers siguen siendo responsables de leer los campos de la UI y
- * mostrar los mensajes de error (con AlertaUtil); este service no conoce
- * JavaFX en absoluto, así que también se puede testear sin levantar una UI.
- */
+
 public class ClienteService {
 
     private final ClienteDAO clienteDAO = new ClienteDAO();
@@ -33,7 +16,7 @@ public class ClienteService {
     private static final Pattern TELEFONO_REGEX = Pattern.compile("^[0-9]{7,15}$");
     private static final Pattern DOCUMENTO_REGEX = Pattern.compile("^[0-9]{6,12}$");
 
-    public enum ResultadoAlta { OK, DUPLICADO, ERROR_INSERCION }
+
 
     /** @return null si el email es válido, o el mensaje de error a mostrar. */
     public String validarEmail(String email) {
@@ -68,15 +51,30 @@ public class ClienteService {
      */
     public ResultadoAlta registrarCliente(Cliente cliente) throws SQLException {
         Cliente existente = clienteDAO.consultarPorDocumentoCompleto(
-                cliente.getNombreTipoDocumento(), cliente.getNumeroDocumento());
+                cliente.getNombreTipoDocumento(),
+                cliente.getNumeroDocumento()
+        );
 
         if (existente != null) {
-            return ResultadoAlta.DUPLICADO;
+            if (existente.isActivo()) {
+                return ResultadoAlta.DUPLICADO;
+            } else {
+                return ResultadoAlta.DUPLICADO_INACTIVO;
+            }
         }
+
 
         boolean insertado = clienteDAO.insertar(cliente);
         return insertado ? ResultadoAlta.OK : ResultadoAlta.ERROR_INSERCION;
     }
+
+    public enum ResultadoAlta {
+        OK,
+        DUPLICADO,
+        DUPLICADO_INACTIVO,   // ✅ nuevo valor
+        ERROR_INSERCION
+    }
+
 
     public boolean actualizarCliente(Cliente cliente) throws SQLException {
         return clienteDAO.actualizar(cliente);
@@ -108,4 +106,8 @@ public class ClienteService {
     public int contarVisitasPorIdCliente(int idCliente) {
         return clienteDAO.contarVisitasPorIdCliente(idCliente);
     }
+    public List<Cliente> obtenerPorEstado(boolean activo) throws SQLException {
+        return clienteDAO.obtenerPorEstado(activo);
+    }
+
 }

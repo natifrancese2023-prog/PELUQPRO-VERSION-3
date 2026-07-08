@@ -9,27 +9,18 @@ import javafx.collections.ObservableList;
 
 import java.util.List;
 
-/**
- * Punto único de acceso al dominio Visita.
- * <p>
- * A diferencia de ClienteService/TurnoService/FacturaService, acá no había
- * grandes reglas de negocio sueltas en los controllers para extraer — el
- * método más importante (guardarNuevaVisita) ya vivía bien encapsulado y
- * transaccional dentro de visitaDAO. El valor principal de este service es
- * arquitectónico: que ningún controller instancie visitaDAO directo, mismo
- * criterio que el resto de los dominios ya migrados.
- * <p>
- * Nota: dentro de {@code visitaDAO.guardarNuevaVisita()} el turno se marca
- * como FINALIZADO en la MISMA transacción que la visita (no se puede separar
- * eso a una llamada aparte a TurnoService sin romper la atomicidad
- * visita+turno) — por eso esta clase no expone un método separado para eso;
- * queda encapsulado adentro del guardado de la visita.
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 public class VisitaService {
 
+    private static final Logger log = LoggerFactory.getLogger(VisitaService.class);
     private final visitaDAO visitaDAO = new visitaDAO();
 
     public boolean registrarVisita(Cliente cliente, ObservableList<ServicioTemp> servicios, int idEstilista, int idTurno) {
+        log.info("Registrando nueva visita para cliente={} turno={}",
+                cliente != null ? cliente.getIdCliente() : null, idTurno);
         return visitaDAO.guardarNuevaVisita(cliente, servicios, idEstilista, idTurno);
     }
 
@@ -50,6 +41,6 @@ public class VisitaService {
     }
 
     public List<Visita> obtenerTodas() {
-        return dao.visitaDAO.obtenerTodas();
+        return visitaDAO.obtenerTodas();
     }
 }

@@ -37,7 +37,7 @@ public class ClienteDAO {
     private static final String SELECT_CLIENTE_POR_DOCUMENTO_COMPLETO =
             "SELECT c.id_cliente, p.id_persona, p.nombre, p.apellido, p.telefono, p.email, p.calle, p.numero, " +
                     "d.numero_documento, td.tipo_documento, b.nombre_barrio, ciu.nombre_ciudad, pr.nombre_provincia, " +
-                    "c.fecha_alta " +
+                    "c.fecha_alta, c.activo " +   // ✅ agregado
                     "FROM cliente c " +
                     "JOIN persona p ON c.id_persona = p.id_persona " +
                     "JOIN documento d ON p.id_documento = d.id_documento " +
@@ -45,7 +45,8 @@ public class ClienteDAO {
                     "JOIN barrio b ON p.id_barrio = b.id_barrio " +
                     "JOIN ciudad ciu ON b.id_ciudad = ciu.id_ciudad " +
                     "JOIN provincia pr ON ciu.id_provincia = pr.id_provincia " +
-                    "WHERE td.tipo_documento = ? AND d.numero_documento = ? AND c.activo = true";
+                    "WHERE td.tipo_documento = ? AND d.numero_documento = ?";
+
 
     private static final String SELECT_CLIENTE_POR_ID_COMPLETO =
             "SELECT c.id_cliente, p.id_persona, p.nombre, p.apellido, p.telefono, p.email, p.calle, p.numero, " +
@@ -74,11 +75,17 @@ public class ClienteDAO {
             }
 
             // PASO 0: Validar duplicidad de documento
-            if (documentoDAO.existeClienteConDocumento(conn, cliente.getNumeroDocumento(), idTipoDocumento)) {
-                conn.rollback();
-                throw new SQLException("Error: Ya existe un cliente con ese documento.");
+            Cliente existente = consultarPorDocumentoCompleto(cliente.getNombreTipoDocumento(), cliente.getNumeroDocumento());
+            if (existente != null) {
+                if (!existente.isActivo()) {
+                    // No reactivar acá, solo avisar
+                    conn.rollback();
+                    return false; // El Service lo interpreta como DUPLICADO_INACTIVO
+                } else {
+                    conn.rollback();
+                    throw new SQLException("Error: Ya existe un cliente activo con ese documento.");
+                }
             }
-
             // PASO 1: Insertar Documento
             int idDocumento = documentoDAO.insertar(conn, cliente.getNumeroDocumento(), idTipoDocumento);
             if (idDocumento == -1) { conn.rollback(); return false; }
@@ -199,6 +206,8 @@ public class ClienteDAO {
                     cliente.setNombreCiudad(rs.getString("nombre_ciudad"));
                     cliente.setNombreBarrio(rs.getString("nombre_barrio"));
                     cliente.setFechaAlta(rs.getDate("fecha_alta"));
+                    cliente.setActivo(rs.getBoolean("activo"));
+
 
                     ClienteRedSocial redSocial = redSocialDAO.consultarPorCliente(conn, idCliente);
                     cliente.setRedSocial(redSocial);
@@ -210,24 +219,23 @@ public class ClienteDAO {
         }
         return cliente;
     }
+    public void reactivarCliente(int idCliente) throws SQLException {
+        String sql = "UPDATE cliente SET activo = true WHERE id_cliente = ?";
+        try (Connection conn = ConexionBD.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idCliente);
+            ps.executeUpdate();
+        }
+    }
 
     public List<Cliente> obtenerTodos() {
         List<Cliente> lista = new ArrayList<>();
-        String sql = "SELECT c.id_cliente, c.fecha_alta, p.id_persona, p.nombre AS cliente_nombre, " +
-                "p.apellido AS cliente_apellido, p.telefono AS cliente_telefono, p.email AS cliente_email, " +
-                "p.calle AS cliente_calle, p.numero AS cliente_numero, d.id_documento, d.numero_documento, " +
-                "td.tipo_documento, b.id_barrio, b.nombre_barrio, ci.id_ciudad, ci.nombre_ciudad, " +
-                "pr.id_provincia, pr.nombre_provincia, rs.id_red_social, rs.nombre_usuario AS red_social_usuario, " +
-                "rs.id_tipo_red_social " +
+        String sql = "SELECT c.id_cliente, c.fecha_alta, c.activo, " +
+                "p.id_persona, p.nombre AS cliente_nombre, p.apellido AS cliente_apellido, " +
+                "d.id_documento, d.numero_documento " +
                 "FROM cliente c " +
                 "JOIN persona p ON c.id_persona = p.id_persona " +
                 "JOIN documento d ON p.id_documento = d.id_documento " +
-                "JOIN tipo_documento td ON d.id_tipo_documento = td.id_tipo_documento " +
-                "JOIN barrio b ON p.id_barrio = b.id_barrio " +
-                "JOIN ciudad ci ON b.id_ciudad = ci.id_ciudad " +
-                "JOIN provincia pr ON ci.id_provincia = pr.id_provincia " +
-                "LEFT JOIN red_social rs ON c.id_cliente = rs.id_cliente " +
-                "WHERE c.activo = true " +
                 "ORDER BY c.id_cliente";
 
         try (Connection conn = ConexionBD.getConnection();
@@ -238,49 +246,15 @@ public class ClienteDAO {
                 Cliente cliente = new Cliente();
                 cliente.setIdCliente(rs.getInt("id_cliente"));
                 cliente.setFechaAlta(rs.getDate("fecha_alta"));
+                cliente.setActivo(rs.getBoolean("activo"));
 
                 Persona persona = new Persona();
                 persona.setIdPersona(rs.getInt("id_persona"));
                 persona.setNombre(rs.getString("cliente_nombre"));
                 persona.setApellido(rs.getString("cliente_apellido"));
-                persona.setTelefono(rs.getString("cliente_telefono"));
-                persona.setEmail(rs.getString("cliente_email"));
-                persona.setCalle(rs.getString("cliente_calle"));
-                persona.setNumero(rs.getString("cliente_numero"));
-
-                Documento documento = new Documento();
-                documento.setIdDocumento(rs.getInt("id_documento"));
-                documento.setNumeroDocumento(rs.getString("numero_documento"));
-                documento.setTipoDocumento(rs.getString("tipo_documento"));
-                persona.setNumeroDocumento(documento.getNumeroDocumento());
-
-                Barrio barrio = new Barrio();
-                barrio.setIdBarrio(rs.getInt("id_barrio"));
-                barrio.setNombreBarrio(rs.getString("nombre_barrio"));
-
-                Ciudad ciudad = new Ciudad();
-                ciudad.setIdCiudad(rs.getInt("id_ciudad"));
-                ciudad.setNombreCiudad(rs.getString("nombre_ciudad"));
-
-                Provincia provincia = new Provincia();
-                provincia.setIdProvincia(rs.getInt("id_provincia"));
-                provincia.setNombreProvincia(rs.getString("nombre_provincia"));
-
-                ciudad.setProvincia(provincia);
-                barrio.setCiudad(ciudad);
-                persona.setNombreBarrio(String.valueOf(barrio));
+                persona.setNumeroDocumento(rs.getString("numero_documento"));
 
                 cliente.setPersona(persona);
-
-                int idRedSocial = rs.getInt("id_red_social");
-                if (idRedSocial != 0) {
-                    ClienteRedSocial redSocial = new ClienteRedSocial();
-                    redSocial.setIdTipoRedSocial(idRedSocial);
-                    redSocial.setNombreUsuario(rs.getString("red_social_usuario"));
-                    redSocial.setIdTipoRedSocial(rs.getInt("id_tipo_red_social"));
-                    cliente.setRedSocial(redSocial);
-                }
-
                 lista.add(cliente);
             }
 
@@ -289,6 +263,7 @@ public class ClienteDAO {
         }
         return lista;
     }
+
 
     public boolean actualizar(Cliente cliente) throws SQLException {
         Connection conn = null;
@@ -387,4 +362,36 @@ public class ClienteDAO {
     public List<String> obtenerBarriosPorCiudad(String nombreCiudad) throws SQLException {
         return personaDAO.obtenerBarriosPorCiudad(nombreCiudad);
     }
+    public List<Cliente> obtenerPorEstado(boolean activo) throws SQLException {
+        List<Cliente> clientes = new ArrayList<>();
+        String sql = "SELECT c.id_cliente, p.nombre, p.apellido, d.numero_documento, c.fecha_alta, c.activo " +
+                "FROM cliente c " +
+                "JOIN persona p ON c.id_persona = p.id_persona " +
+                "JOIN documento d ON p.id_documento = d.id_documento " +
+                "WHERE c.activo = ?";
+
+        try (Connection conn = ConexionBD.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBoolean(1, activo);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Cliente cliente = new Cliente();
+                    cliente.setIdCliente(rs.getInt("id_cliente"));
+                    cliente.setFechaAlta(rs.getDate("fecha_alta"));
+                    cliente.setActivo(rs.getBoolean("activo"));
+
+                    // Persona embebida
+                    claseslogicas.Persona persona = new claseslogicas.Persona();
+                    persona.setNombre(rs.getString("nombre"));
+                    persona.setApellido(rs.getString("apellido"));
+                    persona.setNumeroDocumento(rs.getString("numero_documento"));
+                    cliente.setPersona(persona);
+
+                    clientes.add(cliente);
+                }
+            }
+        }
+        return clientes;
+    }
+
 }

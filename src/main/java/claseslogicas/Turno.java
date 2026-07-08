@@ -74,12 +74,14 @@ public class Turno {
     }
 
     public EstadoTurno getEstadoLogico() {
-        return EstadoTurno.obtenerPorId(idEstado);
+        // Fuente de verdad: estadoTurno. Si por algún motivo es null, fallback defensivo.
+        return (estadoTurno != null)
+                ? estadoTurno
+                : EstadoTurno.obtenerPorIdSeguro(idEstado, EstadoTurno.PENDIENTE);
     }
 
     public void setEstadoLogico(EstadoTurno estado) {
-        this.idEstado = estado.getId();
-        this.nombreEstado = estado.getNombre();
+        setEstadoTurno(estado); // reutiliza el setter único, evita duplicar lógica
     }
 
 
@@ -114,7 +116,8 @@ public class Turno {
 
     public void setIdEstado(int idEstado) {
         this.idEstado = idEstado;
-        this.setEstadoLogico(EstadoTurno.obtenerPorId(idEstado));
+        // Defensivo: no explota si el id es inválido, cae a PENDIENTE
+        this.setEstadoTurno(EstadoTurno.obtenerPorIdSeguro(idEstado, EstadoTurno.PENDIENTE));
     }
 
     public String getMotivoLog() { return motivoLog; }
@@ -166,6 +169,10 @@ public class Turno {
 
     public void setEstadoTurno(EstadoTurno estadoTurno) {
         this.estadoTurno = estadoTurno;
+        if (estadoTurno != null) {
+            this.idEstado = estadoTurno.getId();
+            this.nombreEstado = estadoTurno.getNombre();
+        }
     }
 
     public EstadoTurno getEstadoTurno() {

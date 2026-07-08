@@ -112,8 +112,6 @@ public class AltaClienteController implements Initializable {
             }
         });
     }
-
-
     @FXML
     private void handleGuardarCliente(ActionEvent event) {
         if (!validarCampos()) {
@@ -155,15 +153,38 @@ public class AltaClienteController implements Initializable {
                             "El nuevo cliente ha sido registrado en la base de datos.");
                     handleCancelar(); // limpiar campos
                 }
-                case DUPLICADO -> AlertaUtil.mostrarAlerta(
-                        Alert.AlertType.ERROR,
-                        "Duplicado",
-                        "Cliente ya registrado",
-                        "Ya existe un cliente con el documento "
-                                + nuevoCliente.getNombreTipoDocumento() + " "
-                                + nuevoCliente.getNumeroDocumento() + "."
-                );
-                case ERROR_INSERCION -> AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Fallo de Lógica", "Error de Inserción",
+                case DUPLICADO -> {
+                    AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR,
+                            "Duplicado",
+                            "Cliente ya registrado",
+                            "Ya existe un cliente activo con el documento "
+                                    + nuevoCliente.getNombreTipoDocumento() + " "
+                                    + nuevoCliente.getNumeroDocumento() + ".");
+                }
+                case DUPLICADO_INACTIVO -> {
+                    Cliente existente = clienteDAO.consultarPorDocumentoCompleto(
+                            nuevoCliente.getNombreTipoDocumento(),
+                            nuevoCliente.getNumeroDocumento()
+                    );
+
+                    if (existente != null && !existente.isActivo()) {
+                        boolean reactivar = AlertaUtil.mostrarConfirmacion(
+                                "Cliente inactivo",
+                                "Ya existe un cliente con ese documento pero está inactivo.",
+                                "¿Desea reactivarlo y recuperar sus datos?"
+                        );
+                        if (reactivar) {
+                            clienteDAO.reactivarCliente(existente.getIdCliente());
+                            AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION,
+                                    "Reactivación Exitosa",
+                                    null,
+                                    "Cliente reactivado correctamente.");
+                            handleCancelar();
+                        }
+                    }
+                }
+                case ERROR_INSERCION -> AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR,
+                        "Fallo de Lógica", "Error de Inserción",
                         "No se pudo registrar el cliente. Posiblemente faltan IDs de FKs (Tipo Documento, Barrio).");
             }
 
@@ -173,6 +194,7 @@ public class AltaClienteController implements Initializable {
                     "Ocurrió un error al intentar registrar el cliente. Verifique la conexión.");
         }
     }
+
 
 
 

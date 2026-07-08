@@ -3,13 +3,18 @@ package dao;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.math.BigDecimal;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ReporteFacturacionDAO {
-    private final ConexionBD conexionBD = new ConexionBD();
+
+    private static final Logger log = LoggerFactory.getLogger(ReporteFacturacionDAO.class);
 
     public Map<LocalDate, BigDecimal> obtenerFacturacionPorDia(LocalDate inicio, LocalDate fin) {
         Map<LocalDate, BigDecimal> resultados = new LinkedHashMap<>();
@@ -19,22 +24,23 @@ public class ReporteFacturacionDAO {
                 "AND id_estado_factura = 2 " +
                 "GROUP BY DATE(fecha_hora) " +
                 "ORDER BY fecha";
-        try (Connection conn = conexionBD.getConnection();
+
+        try (Connection conn = ConexionBD.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            // Se usa fin.plusDays(1) para incluir el último día completamente
             stmt.setObject(1, inicio);
-            stmt.setObject(2, fin.plusDays(1));
+            stmt.setObject(2, fin.plusDays(1)); // incluye el último día completo
 
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                LocalDate fecha = rs.getDate("fecha").toLocalDate();
-                BigDecimal total = rs.getBigDecimal("total_facturado");
-                resultados.put(fecha, total != null ? total : BigDecimal.ZERO);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    LocalDate fecha = rs.getDate("fecha").toLocalDate();
+                    BigDecimal total = rs.getBigDecimal("total_facturado");
+                    resultados.put(fecha, total != null ? total : BigDecimal.ZERO);
+                }
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            log.error("Error al obtener facturación entre {} y {}", inicio, fin, e);
         }
 
         return resultados;
@@ -49,21 +55,23 @@ public class ReporteFacturacionDAO {
                 "AND f.id_estado_factura = 2 " +
                 "GROUP BY mp.nombre_metodo " +
                 "ORDER BY cantidad DESC";
-        try (Connection conn = conexionBD.getConnection();
+
+        try (Connection conn = ConexionBD.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setObject(1, inicio);
             stmt.setObject(2, fin.plusDays(1)); // incluye el día final
 
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                String metodo = rs.getString("nombre_metodo");
-                int cantidad = rs.getInt("cantidad");
-                resultados.put(metodo, cantidad);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String metodo = rs.getString("nombre_metodo");
+                    int cantidad = rs.getInt("cantidad");
+                    resultados.put(metodo, cantidad);
+                }
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            log.error("Error al obtener uso de métodos de pago entre {} y {}", inicio, fin, e);
         }
 
         return resultados;

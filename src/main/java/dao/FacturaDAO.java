@@ -1,26 +1,28 @@
 package dao;
 
 import claseslogicas.*;
-
 import java.math.BigDecimal;
 import java.sql.*;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class FacturaDAO {
+
+    private static final Logger log = LoggerFactory.getLogger(FacturaDAO.class);
 
     private static final String INSERT_FACTURA =
             "INSERT INTO factura (id_cliente, id_turno, fecha_hora, id_metodo, total, id_estado_factura) VALUES (?, ?, ?, ?, ?, ?)";
 
     private static final String INSERT_DETALLE =
             "INSERT INTO detalle_factura (id_factura, id_servicio, descripcion_servicio, precio_unitario, cantidad, subtotal) VALUES (?, ?, ?, ?, ?, ?)";
-    private TurnoDAO turnoDAO = new TurnoDAO();
+
+    private final TurnoDAO turnoDAO = new TurnoDAO();
 
     public void guardarFactura(Factura factura, int idTurno, int idMetodoPago) throws SQLException {
-        Connection conn = null;
-        try {
-            conn = ConexionBD.getConnection();
+        try (Connection conn = ConexionBD.getConnection()) {
             conn.setAutoCommit(false);
 
             int idFactura = insertarCabecera(conn, factura, idTurno, idMetodoPago);
@@ -34,17 +36,16 @@ public class FacturaDAO {
                 throw new SQLException("No se pudo insertar el detalle de la factura.");
             }
 
-
             turnoDAO.actualizarEstadoTurno(conn, idTurno, EstadoTurno.FACTURADO.getId());
 
             conn.commit();
             factura.setIdFactura(idFactura);
 
+            log.info("Factura guardada id={} turno={} cliente={}", idFactura, idTurno, factura.getIdCliente());
+
         } catch (SQLException e) {
-            if (conn != null) conn.rollback();
+            log.error("Error al guardar factura turno={} cliente={}", idTurno, factura.getIdCliente(), e);
             throw e;
-        } finally {
-            if (conn != null) conn.close();
         }
     }
 
@@ -59,26 +60,27 @@ public class FacturaDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, idTurno);
-            ResultSet rs = ps.executeQuery();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Factura factura = new Factura();
+                    factura.setIdFactura(rs.getInt("id_factura"));
+                    factura.setIdTurno(rs.getInt("id_turno"));
+                    factura.setIdCliente(rs.getInt("id_cliente"));
+                    factura.setMontoTotal(rs.getBigDecimal("total"));
+                    factura.setMetodoPago(rs.getString("nombre_metodo"));
 
-            if (rs.next()) {
-                Factura factura = new Factura();
-                factura.setIdFactura(rs.getInt("id_factura"));
-                factura.setIdTurno(rs.getInt("id_turno"));
-                factura.setIdCliente(rs.getInt("id_cliente"));
-                factura.setMontoTotal(rs.getBigDecimal("total"));   // ✅ BigDecimal
-                factura.setMetodoPago(rs.getString("nombre_metodo"));
+                    int idEstado = rs.getInt("id_estado_factura");
+                    String nombreEstado = rs.getString("nombre_estado");
+                    factura.setEstadoFactura(new EstadoFactura(idEstado, nombreEstado));
+                    factura.setEstadoFacturaNombre(nombreEstado);
 
-                int idEstado = rs.getInt("id_estado_factura");
-                String nombreEstado = rs.getString("nombre_estado");
-                factura.setEstadoFactura(new EstadoFactura(idEstado, nombreEstado));
-                factura.setEstadoFacturaNombre(nombreEstado);
-
-                return factura;
+                    return factura;
+                }
             }
         }
         return null;
     }
+
     public static List<Factura> obtenerTodas() {
         Map<Integer, Factura> mapaFacturas = new LinkedHashMap<>();
         String sql = "SELECT f.id_factura, f.id_turno, f.fecha_hora, f.total, " +
@@ -111,11 +113,10 @@ public class FacturaDAO {
                     factura.setIdFactura(idFactura);
                     factura.setIdTurno(rs.getInt("id_turno"));
                     factura.setFechaHora(rs.getTimestamp("fecha_hora").toLocalDateTime());
-                    factura.setMontoTotal(BigDecimal.valueOf(rs.getBigDecimal("total").doubleValue()));
+                    factura.setMontoTotal(rs.getBigDecimal("total"));
                     factura.setMetodoPago(rs.getString("metodo_pago"));
                     factura.setEstadoFacturaNombre(rs.getString("estado_factura"));
 
-                    // ✅ CORREGIDO: setear nombre directo en Cliente (hereda de Persona)
                     Cliente cliente = new Cliente();
                     cliente.setNombre(rs.getString("cliente_nombre"));
                     cliente.setApellido(rs.getString("cliente_apellido"));
@@ -126,7 +127,6 @@ public class FacturaDAO {
                     mapaFacturas.put(idFactura, factura);
                 }
 
-                // Agregar detalle si existe
                 int idDetalle = rs.getInt("id_detalle");
                 if (idDetalle != 0) {
                     DetalleFactura detalle = new DetalleFactura();
@@ -145,18 +145,12 @@ public class FacturaDAO {
                 }
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            log.error("Error al obtener todas las facturas", e);
         }
         return new ArrayList<>(mapaFacturas.values());
     }
-
-    // =====================================================================
-    // OBTENER POR RANGO DE FECHAS
-    // =====================================================================
     public static List<Factura> obtenerPorRango(LocalDate desde, LocalDate hasta) {
-
-
         Map<Integer, Factura> mapaFacturas = new LinkedHashMap<>();
         String sql = "SELECT f.id_factura, f.id_turno, f.fecha_hora, f.total, " +
                 "mp.nombre_metodo AS metodo_pago, " +
@@ -192,11 +186,10 @@ public class FacturaDAO {
                         factura.setIdFactura(idFactura);
                         factura.setIdTurno(rs.getInt("id_turno"));
                         factura.setFechaHora(rs.getTimestamp("fecha_hora").toLocalDateTime());
-                        factura.setMontoTotal(BigDecimal.valueOf(rs.getBigDecimal("total").doubleValue()));
+                        factura.setMontoTotal(rs.getBigDecimal("total"));
                         factura.setMetodoPago(rs.getString("metodo_pago"));
                         factura.setEstadoFacturaNombre(rs.getString("estado_factura"));
 
-                        // ✅ CORREGIDO: setear nombre directo en Cliente (hereda de Persona)
                         Cliente cliente = new Cliente();
                         cliente.setNombre(rs.getString("cliente_nombre"));
                         cliente.setApellido(rs.getString("cliente_apellido"));
@@ -207,7 +200,6 @@ public class FacturaDAO {
                         mapaFacturas.put(idFactura, factura);
                     }
 
-                    // Agregar detalle si existe
                     int idDetalle = rs.getInt("id_detalle");
                     if (idDetalle != 0) {
                         DetalleFactura detalle = new DetalleFactura();
@@ -216,22 +208,29 @@ public class FacturaDAO {
                         detalle.setPrecioUnitario(rs.getBigDecimal("precio_unitario"));
                         detalle.setCantidad(rs.getInt("cantidad"));
                         detalle.setSubtotal(rs.getBigDecimal("subtotal"));
+
+                        Servicio servicio = new Servicio();
+                        servicio.setNombreServicio(rs.getString("nombre_servicio"));
+                        detalle.setServicio(servicio);
+
                         factura.addDetalle(detalle);
                     }
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            log.error("Error al obtener facturas por rango {} - {}", desde, hasta, e);
         }
         return new ArrayList<>(mapaFacturas.values());
     }
+
+    // Inserta cabecera de factura y devuelve id generado
     private int insertarCabecera(Connection conn, Factura factura, int idTurno, int idMetodoPago) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(INSERT_FACTURA, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, factura.getIdCliente());
             ps.setInt(2, idTurno);
             ps.setTimestamp(3, Timestamp.valueOf(factura.getFechaHora()));
             ps.setInt(4, idMetodoPago);
-            ps.setBigDecimal(5, factura.getMontoTotal());   // ✅ BigDecimal
+            ps.setBigDecimal(5, factura.getMontoTotal());
             ps.setInt(6, factura.getEstadoFactura().getIdEstadoFactura());
 
             if (ps.executeUpdate() > 0) {
@@ -245,6 +244,7 @@ public class FacturaDAO {
         return -1;
     }
 
+    // Inserta detalle de factura
     private boolean insertarDetalle(Connection conn, int idFactura, List<Servicio> servicios) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(INSERT_DETALLE)) {
             for (Servicio servicio : servicios) {
@@ -260,7 +260,7 @@ public class FacturaDAO {
                 ps.setBigDecimal(4, precioUnitario);
                 ps.setInt(5, 1);
 
-                BigDecimal subtotal = precioUnitario.multiply(BigDecimal.valueOf(1));
+                BigDecimal subtotal = precioUnitario.multiply(BigDecimal.ONE);
                 ps.setBigDecimal(6, subtotal);
 
                 ps.addBatch();
@@ -269,4 +269,5 @@ public class FacturaDAO {
             int[] resultados = ps.executeBatch();
             return resultados.length > 0;
         }
-    }}
+    }
+}

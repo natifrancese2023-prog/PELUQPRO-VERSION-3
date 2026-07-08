@@ -1,7 +1,7 @@
 package controllers;
 
 import claseslogicas.Usuario;
-import dao.UsuarioDao;
+import dao.UsuarioDAO;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -26,7 +26,7 @@ public class LoginController {
     @FXML
     private Button btnIngresar;
 
-    private UsuarioDao usuarioDao = new UsuarioDao();
+    private UsuarioDAO usuarioDao = new UsuarioDAO();
 
     @FXML
     private void loginAction() {

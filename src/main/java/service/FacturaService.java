@@ -14,16 +14,12 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * Reglas de negocio del dominio Factura: cálculo de monto y coordinación de
- * alta (chequeo de "¿ya está pagada?" + guardado).
- * <p>
- * Antes todo esto vivía directo en FacturaController, mezclado con el código
- * de UI (JavaFX). El cálculo del monto final en particular ya usaba
- * BigDecimal con RoundingMode explícito — eso se mantiene igual, solo se
- * relocalizó.
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class FacturaService {
+
+    private static final Logger log = LoggerFactory.getLogger(FacturaService.class);
 
     private final FacturaDAO facturaDAO = new FacturaDAO();
     private final MetodoPagoDAO metodoPagoDAO = new MetodoPagoDAO();
@@ -40,36 +36,31 @@ public class FacturaService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    /**
-     * Aplica el porcentaje modificador del método de pago (recargo/descuento)
-     * sobre el total de servicios. Si el método no existe, devuelve el total
-     * sin modificar (mismo comportamiento que tenía el controller).
-     */
     public BigDecimal calcularMontoFinal(BigDecimal totalServicios, String nombreMetodoPago) throws SQLException {
         MetodoPago metodo = metodoPagoDAO.obtenerPorNombre(nombreMetodoPago);
         if (metodo == null) {
+            log.warn("Método de pago '{}' no encontrado, se aplica total sin modificar", nombreMetodoPago);
             return totalServicios;
         }
 
         BigDecimal porcentaje = BigDecimal.valueOf(metodo.getPorcentajeModificador());
-        return totalServicios.add(
+        BigDecimal montoFinal = totalServicios.add(
                 totalServicios.multiply(porcentaje).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
         );
+        log.info("Monto final calculado con método={} total={}", nombreMetodoPago, montoFinal);
+        return montoFinal;
     }
 
-    /**
-     * Registra la factura de una visita, validando primero que el método de
-     * pago exista, que el turno asociado sea válido, y que el turno no tenga
-     * ya una factura marcada como Pagada.
-     */
     public ResultadoFactura registrarFactura(Visita visita, int idCliente, String nombreMetodoPago, BigDecimal montoFinal) throws SQLException {
         MetodoPago metodo = metodoPagoDAO.obtenerPorNombre(nombreMetodoPago);
         if (metodo == null) {
+            log.warn("Intento de registrar factura con método inválido '{}'", nombreMetodoPago);
             return new ResultadoFactura(ResultadoFactura.Estado.METODO_INVALIDO, null);
         }
 
         int idTurno = visita.getIdTurno();
         if (idTurno <= 0) {
+            log.warn("Intento de registrar factura con turno inválido id={}", idTurno);
             return new ResultadoFactura(ResultadoFactura.Estado.TURNO_INVALIDO, null);
         }
 
@@ -77,6 +68,7 @@ public class FacturaService {
         if (facturaExistente != null
                 && facturaExistente.getEstadoFactura() != null
                 && facturaExistente.getEstadoFactura().getIdEstadoFactura() == ID_ESTADO_PAGADA) {
+            log.info("Factura ya pagada para turno={}", idTurno);
             return new ResultadoFactura(ResultadoFactura.Estado.YA_PAGADA, null);
         }
 
@@ -85,10 +77,8 @@ public class FacturaService {
         facturaGenerada.setIdCliente(idCliente);
         facturaGenerada.setEstadoFactura(new EstadoFactura(ID_ESTADO_PAGADA, "Pagada"));
 
-        // El guardado ya deja el turno en estado FACTURADO dentro de la misma
-        // transacción (ver FacturaDAO.guardarFactura) — no hace falta tocar
-        // el estado del turno acá.
         facturaDAO.guardarFactura(facturaGenerada, idTurno, metodo.getIdMetodo());
+        log.info("Factura registrada OK idTurno={} idCliente={}", idTurno, idCliente);
 
         return new ResultadoFactura(ResultadoFactura.Estado.OK, facturaGenerada);
     }
@@ -99,5 +89,10 @@ public class FacturaService {
 
     public Factura obtenerPorTurno(int idTurno) throws SQLException {
         return facturaDAO.obtenerPorTurno(idTurno);
+    }
+
+    // 🔹 Nuevo: obtener todas las facturas
+    public List<Factura> obtenerTodas() {
+        return FacturaDAO.obtenerTodas();
     }
 }

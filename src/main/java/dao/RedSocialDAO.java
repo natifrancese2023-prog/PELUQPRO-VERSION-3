@@ -3,17 +3,16 @@ package dao;
 import claseslogicas.Cliente;
 import claseslogicas.ClienteRedSocial;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Acceso a la tabla red_social. Extraído de ClienteDAO.
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class RedSocialDAO {
+
+    private static final Logger log = LoggerFactory.getLogger(RedSocialDAO.class);
 
     private static final String SELECT_TIPOS_RED_SOCIAL_ID =
             "SELECT id_tipo_red_social FROM tipos_red_social WHERE tipo_red_social = ?";
@@ -51,6 +50,7 @@ public class RedSocialDAO {
             if (ps.executeUpdate() == 0) {
                 throw new SQLException("No se pudo insertar la red social.");
             }
+            log.info("Red social insertada para cliente={} tipo={}", idCliente, idTipoRedSocial);
         }
     }
 
@@ -63,12 +63,6 @@ public class RedSocialDAO {
         }
     }
 
-    /**
-     * Da de alta, actualiza, o borra la red social del cliente según
-     * corresponda: si el cliente no cargó ningún usuario, borra cualquier
-     * red social previa; si ya existía una, la actualiza; si no existía,
-     * la crea.
-     */
     public void actualizar(Connection conn, Cliente cliente) throws SQLException {
         ClienteRedSocial rsCliente = cliente.getRedSocial();
         int idCliente = cliente.getIdCliente();
@@ -89,6 +83,7 @@ public class RedSocialDAO {
                 ps.setInt(2, idTipoRedSocial);
                 ps.setInt(3, idCliente);
                 ps.executeUpdate();
+                log.info("Red social actualizada para cliente={} tipo={}", idCliente, idTipoRedSocial);
             }
         } else {
             insertar(conn, rsCliente.getNombreUsuario(), idTipoRedSocial, idCliente);
@@ -99,14 +94,10 @@ public class RedSocialDAO {
         try (PreparedStatement ps = conn.prepareStatement(DELETE_RED_SOCIAL_SQL)) {
             ps.setInt(1, idCliente);
             ps.executeUpdate();
+            log.info("Red social eliminada para cliente={}", idCliente);
         }
     }
 
-    /**
-     * Devuelve la red social del cliente, o null si no tiene una cargada.
-     * IMPORTANTE: recibe idCliente, no idPersona — son secuencias distintas
-     * (ver el bug ya corregido antes en la actualización de red social).
-     */
     public ClienteRedSocial consultarPorCliente(Connection conn, int idCliente) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(SELECT_REDES_SOCIAL_POR_CLIENTE)) {
             ps.setInt(1, idCliente);

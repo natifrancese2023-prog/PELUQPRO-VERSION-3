@@ -64,4 +64,13 @@ public class Servicio {
     public void setIdTurno(int idTurno) {
         this.idTurno = idTurno;
     }
+
+    // En tu clase Servicio.java, añade/asegura estos métodos:
+
+
+
+    // 👁️ AGREGA ESTE SETTER si no lo tenías para evitar errores de bindings:
+    public void setIdServicio(int idServicio) {
+        this.idTipoServicio = idServicio;
+    }
 }

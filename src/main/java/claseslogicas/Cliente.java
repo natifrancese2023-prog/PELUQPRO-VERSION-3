@@ -9,6 +9,7 @@ public class Cliente extends Persona {
     private int idCliente;
     private Persona persona;
     public Cliente cliente;
+    private boolean activo;
 
 
     public Cliente() {
@@ -57,6 +58,13 @@ public class Cliente extends Persona {
 
     public void setCliente(Cliente cliente) {
         this.cliente= cliente;}
+    public boolean isActivo() {
+        return activo;
+    }
+
+    public void setActivo(boolean activo) {
+        this.activo = activo;
+    }
 
 
 
