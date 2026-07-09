@@ -19,8 +19,7 @@ public class ReporteGeneralController {
 
         if (archivo != null) {
             try {
-                // Tipo concreto, no ExportadorReporte: exportarTodo() no es
-                // parte del contrato común porque no tiene equivalente en PDF.
+
                 ExportadorExcel exportador = new ExportadorExcel();
                 exportador.exportarTodo(archivo);
                 AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Exportación completa", null,

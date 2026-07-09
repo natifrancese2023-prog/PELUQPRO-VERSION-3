@@ -17,7 +17,7 @@ public class Rol {
         return esEstilista;
     }
 
-    // SETTERS
+
     public void setIdRol(int idRol) {
         this.idRol = idRol;
     }

@@ -25,9 +25,7 @@ public class GestionTurnosController implements Initializable {
         // No se carga nada por defecto, ya que el panel está vacío inicialmente
     }
 
-    /**
-     * Carga un submódulo dentro del panel central usando la ruta FXML definida en el botón.
-     */
+
     @FXML
     private void cargarSubModulo(javafx.event.ActionEvent event) {
         Button boton = (Button) event.getSource();

@@ -12,7 +12,6 @@ public class ServicioTemp {
     private String observaciones;
     private String estado;
 
-    // Constructor y getters
 
     public ServicioTemp(LocalDate fecha, String servicio, String estilista, String observaciones, String estado) {
         this.fecha = fecha;

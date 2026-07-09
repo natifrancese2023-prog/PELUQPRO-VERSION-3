@@ -153,7 +153,7 @@ public class TurnoDAO {
                         mapaTurnos.put(idTurno, turno);
                     }
 
-                    // Servicios asociados (puede haber varios por turno)
+
                     int idServicio = rs.getInt("id_servicio");
                     if (idServicio != 0) {
                         Servicio servicio = new Servicio();

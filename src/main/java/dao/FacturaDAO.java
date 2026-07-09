@@ -19,39 +19,38 @@ public class FacturaDAO {
     private static final String INSERT_DETALLE =
             "INSERT INTO detalle_factura (id_factura, id_servicio, descripcion_servicio, precio_unitario, cantidad) VALUES (?, ?, ?, ?, ?)";
     private final TurnoDAO turnoDAO = new TurnoDAO();
-
-    public void guardarFactura(Factura factura, int idTurno, int idMetodoPago) throws SQLException {
+    public void guardarFactura(Factura factura, int idTurno, Integer idMetodoPago) throws SQLException {
         try (Connection conn = ConexionBD.getConnection()) {
             conn.setAutoCommit(false);
-
-            int idFactura = insertarCabecera(conn, factura, idTurno, idMetodoPago);
-            if (idFactura == -1) {
-                conn.rollback();
-                throw new SQLException("No se pudo insertar la cabecera de la factura.");
-            }
-
-            if (!insertarDetalle(conn, idFactura, factura.getServicios())) {
-                conn.rollback();
-                throw new SQLException("No se pudo insertar el detalle de la factura.");
-            }
-
-            turnoDAO.actualizarEstadoTurno(conn, idTurno, EstadoTurno.FACTURADO.getId());
-
+            guardarFactura(conn, factura, idTurno, idMetodoPago);
             conn.commit();
-            factura.setIdFactura(idFactura);
-
-            log.info("Factura guardada id={} turno={} cliente={}", idFactura, idTurno, factura.getIdCliente());
-
         } catch (SQLException e) {
             log.error("Error al guardar factura turno={} cliente={}", idTurno, factura.getIdCliente(), e);
             throw e;
         }
     }
 
+
+    public void guardarFactura(Connection conn, Factura factura, int idTurno, Integer idMetodoPago) throws SQLException {
+        int idFactura = insertarCabecera(conn, factura, idTurno, idMetodoPago);
+        if (idFactura == -1) {
+            throw new SQLException("No se pudo insertar la cabecera de la factura.");
+        }
+
+        if (!insertarDetalle(conn, idFactura, factura.getServicios())) {
+            throw new SQLException("No se pudo insertar el detalle de la factura.");
+        }
+
+        turnoDAO.actualizarEstadoTurno(conn, idTurno, EstadoTurno.FACTURADO.getId());
+
+        factura.setIdFactura(idFactura);
+        log.info("Factura guardada id={} turno={} cliente={}", idFactura, idTurno, factura.getIdCliente());
+    }
+
     public Factura obtenerPorTurno(int idTurno) throws SQLException {
         String sql = "SELECT f.*, mp.nombre_metodo, mp.porcentaje_modificador, ef.nombre AS nombre_estado " +
                 "FROM factura f " +
-                "JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo " +
+                "LEFT JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo " +
                 "JOIN estado_factura ef ON f.id_estado_factura = ef.id_estado_factura " +
                 "WHERE f.id_turno = ?";
 
@@ -80,17 +79,11 @@ public class FacturaDAO {
         return null;
     }
 
-    /**
-     * NUEVO (flujo de estado): faltaba una forma de recuperar una factura
-     * por su propio id_factura antes de mutarle el estado. Sin este método,
-     * FacturaService.marcarComoPagada/cancelarFactura no tenían cómo verificar
-     * el estado actual antes de aplicar la transición, y el UPDATE en
-     * actualizarEstadoFactura se ejecutaba "a ciegas".
-     */
+
     public Factura obtenerPorId(int idFactura) throws SQLException {
         String sql = "SELECT f.*, mp.nombre_metodo, ef.nombre AS nombre_estado " +
                 "FROM factura f " +
-                "JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo " +
+                "LEFT JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo " +
                 "JOIN estado_factura ef ON f.id_estado_factura = ef.id_estado_factura " +
                 "WHERE f.id_factura = ?";
 
@@ -127,7 +120,7 @@ public class FacturaDAO {
                 "df.id_detalle, df.descripcion_servicio, df.precio_unitario, df.cantidad, df.subtotal, " +
                 "s.id_servicio, s.nombre_servicio " +
                 "FROM factura f " +
-                "JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo " +
+                "LEFT JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo " +
                 "JOIN cliente c ON f.id_cliente = c.id_cliente " +
                 "JOIN persona p ON c.id_persona = p.id_persona " +
                 "JOIN documento d ON p.id_documento = d.id_documento " +
@@ -201,7 +194,7 @@ public class FacturaDAO {
                 "df.id_detalle, df.descripcion_servicio, df.precio_unitario, df.cantidad, df.subtotal, " +
                 "s.nombre_servicio " +
                 "FROM factura f " +
-                "JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo " +
+                "LEFT JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo " +
                 "JOIN cliente c ON f.id_cliente = c.id_cliente " +
                 "JOIN persona p ON c.id_persona = p.id_persona " +
                 "JOIN documento d ON p.id_documento = d.id_documento " +
@@ -268,13 +261,17 @@ public class FacturaDAO {
         return new ArrayList<>(mapaFacturas.values());
     }
 
-    // Inserta cabecera de factura y devuelve id generado
-    private int insertarCabecera(Connection conn, Factura factura, int idTurno, int idMetodoPago) throws SQLException {
+
+    private int insertarCabecera(Connection conn, Factura factura, int idTurno, Integer idMetodoPago) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(INSERT_FACTURA, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, factura.getIdCliente());
             ps.setInt(2, idTurno);
             ps.setTimestamp(3, Timestamp.valueOf(factura.getFechaHora()));
-            ps.setInt(4, idMetodoPago);
+            if (idMetodoPago == null) {
+                ps.setNull(4, Types.INTEGER);
+            } else {
+                ps.setInt(4, idMetodoPago);
+            }
             ps.setBigDecimal(5, factura.getMontoTotal());
             ps.setInt(6, factura.getEstadoFactura().getIdEstadoFactura());
 
@@ -319,6 +316,19 @@ public class FacturaDAO {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, nuevoEstado.getIdEstadoFactura());
             ps.setInt(2, idFactura);
+            ps.executeUpdate();
+        }
+    }
+
+
+    public void actualizarCobro(int idFactura, int idMetodoPago, BigDecimal total, EstadoFactura nuevoEstado) throws SQLException {
+        String sql = "UPDATE factura SET id_metodo = ?, total = ?, id_estado_factura = ? WHERE id_factura = ?";
+        try (Connection conn = ConexionBD.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idMetodoPago);
+            ps.setBigDecimal(2, total);
+            ps.setInt(3, nuevoEstado.getIdEstadoFactura());
+            ps.setInt(4, idFactura);
             ps.executeUpdate();
         }
     }

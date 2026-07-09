@@ -1,6 +1,7 @@
 package dao;
 
 import claseslogicas.*;
+import java.math.BigDecimal;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -66,20 +67,26 @@ public class visitaDAO {
             }
             new TurnoDAO().actualizarEstadoTurno(conn, idTurno, EstadoTurno.FINALIZADO.getId());
 
-// 👇 Generar factura pendiente automáticamente
-            FacturaDAO facturaDAO = new FacturaDAO();
-            Factura facturaPendiente = new Factura();
-            facturaPendiente.setCliente(cliente);
-            facturaPendiente.setEstadoFactura(EstadoFactura.PENDIENTE);
 
+            List<Servicio> serviciosConPrecio = obtenerServiciosDeVisita(conn, idVisitaGenerado);
 
-// ⚠️ Como tu método requiere idTurno e idMetodoPago, pasalos explícitamente
-            int idMetodoPago = MetodoPagoDAO.obtenerPorDefecto(conn); // o el que definas como default
-            facturaDAO.guardarFactura(facturaPendiente, idTurno, idMetodoPago);
+            BigDecimal montoTotal = serviciosConPrecio.stream()
+                    .map(s -> BigDecimal.valueOf(s.getPrecio()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            Factura factura = new Factura();
+            factura.setFechaHora(LocalDateTime.now());
+            factura.setIdCliente(cliente.getIdCliente());
+            factura.setCliente(cliente);
+            factura.setIdTurno(idTurno);
+            factura.setServicios(serviciosConPrecio);
+            factura.setMontoTotal(montoTotal);
+            factura.setEstadoFactura(EstadoFactura.FACTURADA);
+
+            new FacturaDAO().guardarFactura(conn, factura, idTurno, null);
 
             conn.commit();
             return true;
-
 
         } catch (SQLException e) {
             log.error("Error de transacción al guardar visita cliente={} turno={}",
@@ -281,10 +288,21 @@ public class visitaDAO {
     }
 
     private List<Servicio> obtenerServiciosDeVisita(int idVisita) throws SQLException {
-        List<Servicio> servicios = new ArrayList<>();
-        try (Connection conn = ConexionBD.getConnection();
-             PreparedStatement ps = conn.prepareStatement(SELECT_SERVICIOS_DE_VISITA)) {
+        try (Connection conn = ConexionBD.getConnection()) {
+            return obtenerServiciosDeVisita(conn, idVisita);
+        }
+    }
 
+    /**
+     * NUEVO: overload que reutiliza una Connection existente. Necesario para
+     * leer los servicios recién insertados dentro de la misma transacción de
+     * guardarNuevaVisita -antes de hacer commit-; abrir una conexión nueva
+     * (como hacía la versión original) no vería esos datos todavía, según el
+     * nivel de aislamiento por defecto (READ COMMITTED).
+     */
+    private List<Servicio> obtenerServiciosDeVisita(Connection conn, int idVisita) throws SQLException {
+        List<Servicio> servicios = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(SELECT_SERVICIOS_DE_VISITA)) {
             ps.setInt(1, idVisita);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {

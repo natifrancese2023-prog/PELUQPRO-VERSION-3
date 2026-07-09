@@ -52,7 +52,7 @@ public class ServicioDAO {
         return servicios;
     }
 
-    // 🔹 Método privado para evitar duplicación
+
     private Servicio mapearServicio(ResultSet rs) throws SQLException {
         return new Servicio(
                 rs.getInt("id_servicio"),

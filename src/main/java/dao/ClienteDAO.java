@@ -12,20 +12,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Coordinador del dominio Cliente. Ya no contiene el SQL de documento,
- * persona ni red_social directamente — eso vive ahora en DocumentoDAO,
- * PersonaDAO y RedSocialDAO respectivamente. Esta clase mantiene la
- * transacción (conexión, commit/rollback) y decide el orden de los pasos,
- * delegando cada paso al DAO especializado correspondiente.
- * <p>
- * La API pública (insertar, actualizar, eliminar, obtenerPorId,
- * consultarPorDocumentoCompleto, obtenerTodos, obtenerTiposDocumento, etc.)
- * no cambió — ni ClienteService ni ningún controller necesitan modificarse.
- * <p>
- * También se resolvió acá la mezcla de métodos static/instancia que tenía
- * la clase original: ahora todos los métodos públicos son de instancia.
- */
+
 public class ClienteDAO {
 
     private final DocumentoDAO documentoDAO = new DocumentoDAO();
@@ -160,9 +147,7 @@ public class ClienteDAO {
                     cliente.setNombreCiudad(rs.getString("nombre_ciudad"));
                     cliente.setNombreBarrio(rs.getString("nombre_barrio"));
 
-                    // 🔧 Antes acá se pasaba idPersona por error (mismo bug que
-                    // ya habíamos corregido en consultarPorDocumentoCompleto,
-                    // pero se había quedado sin corregir en este método).
+
                     ClienteRedSocial redSocial = redSocialDAO.consultarPorCliente(conn, cliente.getIdCliente());
                     cliente.setRedSocial(redSocial);
                 }

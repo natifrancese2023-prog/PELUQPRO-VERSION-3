@@ -67,9 +67,11 @@ public class ReporteFacturacionController {
         Map<LocalDate, BigDecimal> facturacion = dao.obtenerFacturacionPorDia(inicio, fin);
         Map<String, Integer> metodos = dao.obtenerUsoMetodosPago(inicio, fin);
 
+        Map<LocalDate, java.util.List<String>> metodosPorDia = dao.obtenerMetodosPorFacturaPorDia(inicio, fin);
+
         cargarGraficoFacturacion(facturacion);
         cargarGraficoMetodosPago(metodos);
-        cargarTablaResumen(facturacion, metodos);
+        cargarTablaResumen(facturacion, metodosPorDia);
 
         graficoFacturacion.setVisible(true);
         graficoMetodosPago.setVisible(true);
@@ -104,13 +106,15 @@ public class ReporteFacturacionController {
         graficoMetodosPago.getData().add(serie);
     }
 
-    private void cargarTablaResumen(Map<LocalDate, BigDecimal> facturacion, Map<String, Integer> metodos) {
+    private void cargarTablaResumen(Map<LocalDate, BigDecimal> facturacion, Map<LocalDate, java.util.List<String>> metodosPorDia) {
         tablaResumen.getItems().clear();
         for (Map.Entry<LocalDate, BigDecimal> entry : facturacion.entrySet()) {
+
+            java.util.List<String> metodosDelDia = metodosPorDia.getOrDefault(entry.getKey(), java.util.Collections.emptyList());
             tablaResumen.getItems().add(new FacturaResumen(
                     entry.getKey(),
                     entry.getValue() != null ? entry.getValue() : BigDecimal.ZERO,
-                    metodos
+                    metodosDelDia
             ));
         }
     }

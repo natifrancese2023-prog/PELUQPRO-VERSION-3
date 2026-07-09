@@ -61,14 +61,6 @@
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Button>
-                        <Button fx:id="btnFacturar" text="🧾 Facturar"
-                                onAction="#handleFacturarTurno"
-                                style="-fx-background-color: #fbc02d;" textFill="BLACK" prefHeight="30.0"
-                                disable="true">
-                            <font>
-                                <Font name="System Bold" size="13.0" />
-                            </font>
-                        </Button>
 
 
                         <Button fx:id="btnCancelar" text="❌ Cancelar Turno" onAction="#handleCancelarTurno"

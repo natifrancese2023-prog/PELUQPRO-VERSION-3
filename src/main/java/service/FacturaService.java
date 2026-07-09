@@ -26,12 +26,7 @@ public class FacturaService {
     private final FacturaDAO facturaDAO = new FacturaDAO();
     private final MetodoPagoDAO metodoPagoDAO = new MetodoPagoDAO();
 
-    // Renombrado de ID_ESTADO_PAGADA a ID_ESTADO_FACTURADA: el valor (2) sigue
-    // siendo el mismo y la lógica de registrarFactura no cambia, pero el nombre
-    // original inducía a pensar que id=2 era "pagada" cuando en realidad es
-    // el id de FACTURADA (factura emitida, no necesariamente cobrada). Con el
-    // agregado del estado PAGADA en el enum, mantener el nombre viejo hubiera
-    // sido confuso/incorrecto.
+
     private static final int ID_ESTADO_FACTURADA = EstadoFactura.FACTURADA.getIdEstadoFactura();
 
     public record ResultadoFactura(Estado estado, Factura factura) {
@@ -130,11 +125,7 @@ public class FacturaService {
         }
     }
 
-    /**
-     * FIX (flujo de estado): mismo problema que marcarComoPagada, pero para
-     * la transición hacia ANULADA. Antes se podía anular una factura ya
-     * anulada o incluso una ya pagada sin ningún control.
-     */
+
     public void cancelarFactura(int idFactura) throws SQLException {
         Factura factura = facturaDAO.obtenerPorId(idFactura);
         if (factura == null) {
@@ -149,5 +140,25 @@ public class FacturaService {
             facturaDAO.actualizarEstadoFactura(conn, idFactura, EstadoFactura.ANULADA);
             log.info("Factura CANCELADA idFactura={}", idFactura);
         }
+    }
+
+
+    public void cobrarFactura(int idFactura, String nombreMetodoPago, BigDecimal montoFinal) throws SQLException {
+        MetodoPago metodo = metodoPagoDAO.obtenerPorNombre(nombreMetodoPago);
+        if (metodo == null) {
+            throw new EstadoFacturaInvalidoException("Método de pago no válido: " + nombreMetodoPago);
+        }
+
+        Factura factura = facturaDAO.obtenerPorId(idFactura);
+        if (factura == null) {
+            throw new EstadoFacturaInvalidoException("No existe una factura con id " + idFactura);
+        }
+        if (!factura.getEstadoFactura().puedeTransicionarA(EstadoFactura.PAGADA)) {
+            throw new EstadoFacturaInvalidoException(
+                    "No se puede cobrar una factura en estado " + factura.getEstadoFactura().getNombre());
+        }
+
+        facturaDAO.actualizarCobro(idFactura, metodo.getIdMetodo(), montoFinal, EstadoFactura.PAGADA);
+        log.info("Factura cobrada idFactura={} metodo={} total={}", idFactura, nombreMetodoPago, montoFinal);
     }
 }

@@ -64,8 +64,6 @@ public class GestionDiariaController implements Initializable {
     private Button btnCancelar;
     @FXML
     private Button btnConfirmar;
-    @FXML
-    private Button btnFacturar;
 
     private final EmpleadoDAO empleadoDAO = new EmpleadoDAO();
     private final TurnoService turnoService = new TurnoService();
@@ -227,7 +225,6 @@ public class GestionDiariaController implements Initializable {
             btnFinalizar.setDisable(true);
             btnCancelar.setDisable(true);
             btnConfirmar.setDisable(true);
-            btnFacturar.setDisable(true);
             return;
         }
 
@@ -235,12 +232,11 @@ public class GestionDiariaController implements Initializable {
             btnFinalizar.setDisable(true);
             btnCancelar.setDisable(true);
             btnConfirmar.setDisable(true);
-            btnFacturar.setDisable(true);
             return;
         }
 
         try {
-            // 🔄 FIX 1: Traer el turno fresco de la base de datos para validar con datos reales
+
             Turno turnoFresco = turnoService.obtenerPorId(turno.getIdTurno());
             if (turnoFresco == null) {
                 turnoFresco = turno; // Fallback por seguridad
@@ -251,61 +247,13 @@ public class GestionDiariaController implements Initializable {
             btnCancelar.setDisable(!turnoFresco.puedeCambiarA(EstadoTurno.CANCELADO));
             btnConfirmar.setDisable(!turnoFresco.puedeCambiarA(EstadoTurno.CONFIRMADO));
 
-            // 🚀 Activación del botón Facturar con el turno actualizado
-            btnFacturar.setDisable(!turnoService.puedeFacturar(turnoFresco));
-
         } catch (SQLException e) {
-            // Manejo de error defensivo si falla la consulta
+
             log.error("Error de BD al actualizar estado de botones para turno {}", turno.getIdTurno(), e);
-            btnFacturar.setDisable(true);
         } catch (RuntimeException e) {
-            // Antes esto se perdía sin dejar rastro: cualquier excepción no-SQL
-            // (NPE, etc.) abortaba el método ANTES de llegar a btnFacturar.setDisable(...),
-            // dejando el botón deshabilitado para siempre sin ningún log.
+
             log.error("Excepción inesperada al evaluar estado de botones para turno {}", turno.getIdTurno(), e);
-            btnFacturar.setDisable(true);
-        }
-    }
-    @FXML
-    private void handleFacturarTurno() throws SQLException {
-        Turno turnoSeleccionado = tvTurnos.getSelectionModel().getSelectedItem();
-
-        if (turnoSeleccionado == null) {
-            AlertaUtil.mostrarAlerta(AlertType.WARNING, "Sin selección", null, "Debe seleccionar un turno para facturar.");
-            return;
-        }
-
-        if (turnoSeleccionado.getEstadoTurno() != EstadoTurno.FINALIZADO) {
-            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Estado inválido", null, "Solo se puede facturar un turno que esté Finalizado.");
-            return;
-        }
-
-        Visita visita = turnoService.obtenerVisitaDeTurno(turnoSeleccionado.getIdTurno());
-
-        if (visita != null) {
-            abrirPantallaFacturacion(visita.getIdVisita());
-        } else {
-            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Sin visita", null, "Este turno no tiene una visita registrada.");
         }
     }
 
-    private void abrirPantallaFacturacion(int idVisita) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/Factura.fxml"));
-            Parent root = loader.load();
-
-            FacturaController controller = loader.getController();
-            controller.cargarFacturaDesdeVisita(idVisita);
-
-            Stage stage = new Stage();
-            stage.setTitle("Facturación");
-            stage.setScene(new Scene(root));
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.show();
-
-        } catch (IOException e) {
-            AlertaUtil.mostrarAlerta(AlertType.ERROR, "Error al abrir pantalla", null, "No se pudo cargar la pantalla de facturación.");
-            e.printStackTrace();
-        }
-    }
 }

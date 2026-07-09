@@ -84,13 +84,10 @@ public class AltaTurnoController implements Initializable {
         });
     }
 
-    // =========================================================================
-    // I. IDENTIFICACIÓN DEL CLIENTE
-    // =========================================================================
 
     private void cargarTiposDocumento() {
         try {
-            // Asumo que tienes un método obtenerTiposDocumento() en ClienteDAO
+
             List<String> tipos = clienteDAO.obtenerTiposDocumento();
             cbTipoDocumento.setItems(FXCollections.observableArrayList(tipos));
             if (!tipos.isEmpty()) {

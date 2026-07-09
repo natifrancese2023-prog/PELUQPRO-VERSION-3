@@ -11,16 +11,6 @@ import java.io.FileOutputStream;
 import java.time.LocalDate;
 import java.math.RoundingMode;
 
-/**
- * Exportador de reportes a PDF, usando iText 5 (com.itextpdf.text.*), la
- * versión de la librería que está realmente declarada en pom.xml.
- * <p>
- * Los métodos ya no atrapan la excepción internamente con printStackTrace:
- * la propagan (throws Exception, por contrato de ExportadorReporte) para
- * que el controller que llama pueda avisarle al usuario si la exportación
- * falló de verdad, en vez de mostrar "Exportación exitosa" con un PDF
- * corrupto o vacío.
- */
 public class ExportadorPDF implements ExportadorReporte {
 
     private void agregarEncabezadoInstitucional(Document documento) throws DocumentException {

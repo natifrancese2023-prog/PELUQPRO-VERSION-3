@@ -11,7 +11,7 @@ public class Servicio {
 
     private double precio;
 
-    // Getters y Setters...
+
 
 
     public Servicio() {

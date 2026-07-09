@@ -2,9 +2,7 @@ package claseslogicas;
 
 import java.time.LocalDateTime;
 
-/**
- * mapea datos para el historial de vicitas
- */
+
 public class HistorialView {
 
     private LocalDateTime fechaHora;

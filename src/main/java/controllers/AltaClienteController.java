@@ -13,7 +13,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import java.net.URL;
 
-import java.sql.SQLException; // Importación necesaria
+import java.sql.SQLException;
 import java.util.List;
 import java.util.ResourceBundle;
 import utilidades.AlertaUtil;
@@ -21,12 +21,9 @@ import utilidades.AlertaUtil;
 
 public class AltaClienteController implements Initializable {
 
-    // ClienteDAO se mantiene para las consultas de combos (provincias, ciudades,
-    // barrios, tipos de documento/red social) — son lecturas puras, sin regla
-    // de negocio, no hace falta pasarlas por el service.
+
     private final ClienteDAO clienteDAO = new ClienteDAO();
-    // ClienteService concentra la regla de negocio del alta: formato de
-    // datos y chequeo de duplicado antes de insertar.
+
     private final ClienteService clienteService = new ClienteService();
 
     @FXML private ComboBox<String> cmbTipoDocumento;
@@ -81,7 +78,7 @@ public class AltaClienteController implements Initializable {
 
 
     private void configurarListenersComboBox() {
-        // Listener para cargar CIUDADES cuando se selecciona una PROVINCIA
+
         cmbProvincia.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !newVal.equals(oldVal)) {
                 cmbCiudad.getItems().clear();

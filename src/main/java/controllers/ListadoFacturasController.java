@@ -18,8 +18,14 @@ import utilidades.AlertaUtil;
 // "Marcar como pagada" / "Cancelar factura" (fallaba al cargar el FXML o
 // simplemente no se disparaban los eventos).
 import javafx.event.ActionEvent;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
@@ -34,6 +40,8 @@ public class ListadoFacturasController {
     @FXML private ComboBox<String> cmbFiltroMetodo;
     @FXML private Button btnBuscar;
     @FXML private Button btnVerPDF;
+    @FXML private Button btnMarcarPagada;
+    @FXML private Button btnCancelarFactura;
 
     @FXML private TableView<Factura> tblFacturas;
     @FXML private TableColumn<Factura, Integer> colId;
@@ -73,8 +81,20 @@ public class ListadoFacturasController {
         cmbFiltroMetodo.getSelectionModel().selectFirst();
 
         btnVerPDF.setDisable(true);
+        btnMarcarPagada.setDisable(true);
+        btnCancelarFactura.setDisable(true);
         tblFacturas.getSelectionModel().selectedItemProperty().addListener(
-                (obs, old, nueva) -> btnVerPDF.setDisable(nueva == null));
+                (obs, old, nueva) -> {
+                    // NUEVO: solo se pueden imprimir facturas ya PAGADA.
+                    btnVerPDF.setDisable(!esImprimible(nueva));
+                    // NUEVO (flujo de estado): "Cobrar" y "Anular" solo tienen
+                    // sentido sobre una factura en estado FACTURADA -todavía
+                    // no cobrada, todavía no anulada-. Una vez PAGADA o
+                    // ANULADA son estados terminales (ver EstadoFactura).
+                    boolean esFacturada = nueva != null && nueva.getEstadoFactura() == EstadoFactura.FACTURADA;
+                    btnMarcarPagada.setDisable(!esFacturada);
+                    btnCancelarFactura.setDisable(!esFacturada);
+                });
 
         cmbFiltroEstado.getItems().add(null); // "Todos" los estados
         cmbFiltroEstado.getItems().addAll(EstadoFactura.values());
@@ -104,30 +124,12 @@ public class ListadoFacturasController {
         aplicarFiltrosSecundarios();
     }
 
-    /**
-     * FIX: el FXML (ListadoFacturas.fxml, línea 47) tiene
-     * onAction="#handleFiltrarPorEstado" cableado a cmbFiltroEstado (u otro
-     * control). Ese método existía en el controller original pero yo lo había
-     * quitado al unificar los tres filtros en aplicarFiltrosSecundarios(),
-     * lo que rompía el FXMLLoader con LoadException al no encontrar el
-     * handler. Se reincorpora el nombre del método, pero como alias de la
-     * lógica unificada -no se vuelve a la implementación vieja que ignoraba
-     * el rango de fechas y pisaba el FilteredList-.
-     */
     @FXML
     private void handleFiltrarPorEstado(ActionEvent event) {
         handleAplicarFiltros();
     }
 
-    /**
-     * FIX (flujo de estado): el filtro por EstadoFactura (cmbFiltroEstado)
-     * antes tenía su propio handler (handleFiltrarPorEstado) que ignoraba el
-     * rango de fechas ya buscado y reemplazaba directamente los items de la
-     * tabla, pisando el FilteredList usado por los filtros de cliente/método.
-     * Ahora el filtro de estado se combina acá con los otros dos, sobre el
-     * mismo FilteredList, y cmbFiltroEstado dispara este mismo método
-     * (ver handleAplicarFiltros, cableado también al ComboBox en el FXML).
-     */
+
     private void aplicarFiltrosSecundarios() {
         String cliente = txtFiltroCliente.getText().toLowerCase().trim();
         String metodo = cmbFiltroMetodo.getValue();
@@ -138,8 +140,9 @@ public class ListadoFacturasController {
                     (f.getCliente() != null &&
                             f.getCliente().getNombreCompleto().toLowerCase().contains(cliente));
 
+
             boolean coincideMetodo = metodo == null || metodo.equals("Todos") ||
-                    f.getMetodoPago().equalsIgnoreCase(metodo);
+                    (f.getMetodoPago() != null && f.getMetodoPago().equalsIgnoreCase(metodo));
 
             boolean coincideEstado = estado == null || f.getEstadoFactura() == estado;
 
@@ -147,10 +150,26 @@ public class ListadoFacturasController {
         });
     }
 
+    /**
+     * NUEVO: solo se pueden imprimir/exportar a PDF las facturas ya cobradas
+     * (PAGADA). No tiene sentido entregarle al cliente un comprobante de una
+     * factura que todavía no se cobró.
+     */
+    private boolean esImprimible(Factura factura) {
+        return factura != null && factura.getEstadoFactura() == EstadoFactura.PAGADA;
+    }
+
     @FXML
     private void handleVerPDF() {
         Factura seleccionada = tblFacturas.getSelectionModel().getSelectedItem();
         if (seleccionada == null) return;
+
+        if (!esImprimible(seleccionada)) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "No disponible", null,
+                    "Solo se pueden imprimir facturas en estado Pagada. Esta factura está en estado: "
+                            + seleccionada.getEstadoFacturaNombre());
+            return;
+        }
 
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Guardar factura PDF");
@@ -171,36 +190,45 @@ public class ListadoFacturasController {
         }
     }
 
-    /**
-     * FIX (flujo de estado): antes existían dos pares de métodos duplicados
-     * (onMarcarPagada/onCancelarFactura y handleMarcarPagada/handleCancelarFactura)
-     * con la misma lógica implementada dos veces de forma distinta. Se unifica
-     * todo en un solo método privado (cambiarEstadoSeleccionada) que ambos
-     * pares de handlers invocan, para que el FXML siga funcionando sin
-     * importar cuál de los dos nombres tenga cableado cada botón, sin
-     * duplicar lógica que pueda divergir con el tiempo.
-     *
-     * También se agrega el guard de selección nula que faltaba: antes
-     * obtenerIdSeleccionado() podía devolver null y el unboxing a int
-     * (int idFactura = obtenerIdSeleccionado()) tiraba NullPointerException.
-     */
-    @FXML
-    private void onMarcarPagada(ActionEvent event) {
-        handleMarcarPagada(event);
-    }
-
-    @FXML
-    private void onCancelarFactura(ActionEvent event) {
-        handleCancelarFactura(event);
-    }
-
     @FXML
     private void handleMarcarPagada(ActionEvent event) {
-        cambiarEstadoSeleccionada(
-                idFactura -> facturaService.marcarComoPagada(idFactura),
-                "Factura marcada como Pagada",
-                "Error al marcar factura como pagada"
-        );
+        Factura seleccionada = tblFacturas.getSelectionModel().getSelectedItem();
+        if (seleccionada == null) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Sin selección", null,
+                    "Seleccioná una factura de la tabla primero.");
+            return;
+        }
+        if (seleccionada.getEstadoFactura() != EstadoFactura.FACTURADA) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "No disponible", null,
+                    "Solo se pueden cobrar facturas en estado Facturada.");
+            return;
+        }
+        abrirPantallaCobro(seleccionada);
+    }
+
+    private void abrirPantallaCobro(Factura factura) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/interface/Factura.fxml"));
+            Parent root = loader.load();
+
+            FacturaController controller = loader.getController();
+            controller.cargarFacturaParaCobro(factura);
+
+            Stage stage = new Stage();
+            stage.setTitle("Cobrar factura");
+            stage.setScene(new Scene(root));
+            stage.initModality(Modality.APPLICATION_MODAL);
+            // Al cerrar el modal (se cobró o se canceló), refrescar la tabla
+            // para reflejar el nuevo estado sin que el usuario tenga que
+            // volver a buscar manualmente.
+            stage.setOnHidden(e -> refrescarTabla());
+            stage.showAndWait();
+
+        } catch (IOException e) {
+            AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error al abrir pantalla", null,
+                    "No se pudo cargar la pantalla de cobro.");
+            e.printStackTrace();
+        }
     }
 
     @FXML

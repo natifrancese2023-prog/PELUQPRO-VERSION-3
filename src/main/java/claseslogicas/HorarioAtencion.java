@@ -15,7 +15,7 @@ public class HorarioAtencion {
     private LocalTime horaApertura;
     private LocalTime horaCierre;
 
-    // Constructor, getters y setters
+
 
 
 

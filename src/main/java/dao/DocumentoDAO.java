@@ -8,13 +8,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Acceso a la tabla documento. Extraído de ClienteDAO, que antes concentraba
- * también esta responsabilidad además de persona, red_social y cliente.
- * Los métodos que participan de una transacción más grande (insertar,
- * obtenerIdTipoDocumento, existeClienteConDocumento) reciben la Connection
- * ya abierta por el que llama (ClienteDAO), para no romper la atomicidad.
- */
+
 public class DocumentoDAO {
 
     private static final String SELECT_TIPO_DOCUMENTO_ID =

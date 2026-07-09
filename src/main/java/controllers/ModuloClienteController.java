@@ -29,14 +29,7 @@ public class ModuloClienteController implements Initializable {
         aplicarPermisos();
     }
 
-    /**
-     * RD1.1 (Registrar cliente): Gerente y Recepcionista sí, Estilista no.
-     * RD1.6 (Listado de clientes): Gerente únicamente.
-     * btnFicha queda siempre habilitado: los 3 roles necesitan buscar un
-     * cliente por acá (Gerente para todo, Recepcionista para RD1.4
-     * Actualizar, Estilista para RD1.7 Historial y RD1.9 Registrar visita
-     * — esos dos últimos se filtran dentro de FichaClienteController).
-     */
+
     private void aplicarPermisos() {
         btnAltaCliente.setDisable(utilidades.PermisosUtil.esEstilista());
         btnListar.setDisable(!utilidades.PermisosUtil.esGerente());

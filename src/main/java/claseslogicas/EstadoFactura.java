@@ -1,16 +1,6 @@
 package claseslogicas;
 
-/**
- * Estados posibles de una Factura.
- *
- * FIX respecto a la versión original:
- * - Se agrega el estado PAGADA (id=4), que antes no existía.
- *   Antes "marcarComoPagada()" reasignaba FACTURADA, que ya era el estado
- *   con el que se creaba la factura -> la acción era un no-op semántico.
- * - Se sobreescribe toString() para que los ComboBox<EstadoFactura> del FXML
- *   muestren "Pendiente" / "Facturada" / "Pagada" / "Anulada" en vez del
- *   nombre crudo del enum (PENDIENTE, FACTURADA, etc.).
- */
+
 public enum EstadoFactura {
     PENDIENTE(1, "Pendiente"),
     FACTURADA(2, "Facturada"),

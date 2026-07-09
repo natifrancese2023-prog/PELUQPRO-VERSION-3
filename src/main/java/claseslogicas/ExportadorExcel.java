@@ -77,13 +77,8 @@ public class ExportadorExcel implements ExportadorReporte {
         }
     }
 
-    /**
-     * Volcado general (Clientes + Turnos + Facturas + Visitas). No forma
-     * parte de ExportadorReporte porque, a diferencia de los otros dos
-     * métodos, no tiene equivalente en PDF (ExportadorPDF no lo implementa);
-     * es un método propio de esta clase, usado solo por ReporteGeneralController.
-     */
+
     public void exportarTodo(File destino) throws Exception {
-        // TODO: pendiente de implementar el volcado general completo.
+
     }
 }
