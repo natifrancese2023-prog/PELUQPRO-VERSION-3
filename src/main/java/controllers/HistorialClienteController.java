@@ -46,7 +46,7 @@ public class HistorialClienteController implements Initializable, ConsultaClient
     public void setCliente(Cliente cliente) {
         this.clienteActual = cliente;
         if (cliente != null) {
-            lblNombreCliente.setText("Historial de: " + cliente.getNombreCompleto() + " (ID: " + cliente.getIdCliente() + ")");
+            lblNombreCliente.setText("Historial de: " + cliente.getNombreCompleto());
             cargarHistorial(cliente.getIdCliente());
         }
     }

@@ -9,14 +9,10 @@ public class FacturaResumen {
 
     private LocalDate fecha;
     private BigDecimal totalFacturado;
-    // FIX: antes era Map<String, Integer> con el conteo de todo el período
-    // (ej: "Efectivo: 5 | Transferencia: 3"), y encima el mismo mapa se
-    // repetía en todas las filas de la tabla sin importar el día. Ahora es
-    // la lista de métodos de pago, uno por cada factura de ESE día
-    // puntual, en el orden en que se cobraron.
+    private int cantidadFacturas;
     private List<String> metodosPago;
 
-    public FacturaResumen(LocalDate fecha, BigDecimal totalFacturado, List<String> metodosPago) {
+    public FacturaResumen(LocalDate fecha, BigDecimal totalFacturado, List<String> metodosPago, int cantidadFacturas) {
         this.fecha = fecha;
         this.totalFacturado = totalFacturado;
         this.metodosPago = metodosPago;
@@ -46,5 +42,8 @@ public class FacturaResumen {
             joiner.add(metodo != null ? metodo : "Sin especificar");
         }
         return joiner.toString();
+    }
+    public int getCantidadFacturas() {
+        return cantidadFacturas;
     }
 }

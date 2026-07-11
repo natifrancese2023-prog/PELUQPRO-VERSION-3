@@ -33,7 +33,7 @@ public class PanelPrincipalController {
 
     public void inicializar(Usuario user) {
         this.usuarioLogueado = user;
-        lblUsuario.setText("Bienvenido: " + user.getUsuario());
+        lblUsuario.setText("Bienvenido: " + user.getUsuario()+"   ");
         aplicarPermisos();
     }
 
@@ -49,7 +49,7 @@ public class PanelPrincipalController {
         btnListadoFacturas.setDisable(esEstilista);
     }
 
-    // Método único para cargar vistas en el contenedor central
+
     private void cargarVista(String rutaFXML) {
         try {
             Parent vista = FXMLLoader.load(Objects.requireNonNull(getClass().getResource(rutaFXML)));

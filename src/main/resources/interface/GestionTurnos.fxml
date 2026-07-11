@@ -53,11 +53,6 @@
                         userData="/interface/GestionDiaria.fxml"
                         prefWidth="150.0" styleClass="menu-button" />
 
-                <Separator orientation="VERTICAL" prefHeight="30.0" />
-
-                <Button fx:id="btnVolverPanel" text="VOLVER"
-                        onAction="#handleVolverPanelPrincipal"
-                        prefWidth="120.0" styleClass="menu-button-secondary" />
             </children>
             <padding>
                 <Insets top="5.0" right="10.0" bottom="5.0" left="10.0" />

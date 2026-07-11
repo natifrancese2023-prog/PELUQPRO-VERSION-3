@@ -12,11 +12,6 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.FileChooser;
 import utilidades.AlertaUtil;
 
-// FIX (flujo de estado): el import original era java.awt.event.ActionEvent,
-// que no es compatible con los métodos @FXML de JavaFX. Esto hacía que el
-// FXMLLoader no pudiera resolver correctamente los handlers de los botones
-// "Marcar como pagada" / "Cancelar factura" (fallaba al cargar el FXML o
-// simplemente no se disparaban los eventos).
 import javafx.event.ActionEvent;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -85,12 +80,9 @@ public class ListadoFacturasController {
         btnCancelarFactura.setDisable(true);
         tblFacturas.getSelectionModel().selectedItemProperty().addListener(
                 (obs, old, nueva) -> {
-                    // NUEVO: solo se pueden imprimir facturas ya PAGADA.
+
                     btnVerPDF.setDisable(!esImprimible(nueva));
-                    // NUEVO (flujo de estado): "Cobrar" y "Anular" solo tienen
-                    // sentido sobre una factura en estado FACTURADA -todavía
-                    // no cobrada, todavía no anulada-. Una vez PAGADA o
-                    // ANULADA son estados terminales (ver EstadoFactura).
+
                     boolean esFacturada = nueva != null && nueva.getEstadoFactura() == EstadoFactura.FACTURADA;
                     btnMarcarPagada.setDisable(!esFacturada);
                     btnCancelarFactura.setDisable(!esFacturada);
@@ -128,33 +120,29 @@ public class ListadoFacturasController {
     private void handleFiltrarPorEstado(ActionEvent event) {
         handleAplicarFiltros();
     }
-
-
     private void aplicarFiltrosSecundarios() {
-        String cliente = txtFiltroCliente.getText().toLowerCase().trim();
+        String filtroDni = txtFiltroCliente.getText().toLowerCase().trim();
         String metodo = cmbFiltroMetodo.getValue();
         EstadoFactura estado = cmbFiltroEstado.getValue();
 
         facturasFiltradas.setPredicate(f -> {
-            boolean coincideCliente = cliente.isEmpty() ||
+            boolean coincideDni = filtroDni.isEmpty() ||
                     (f.getCliente() != null &&
-                            f.getCliente().getNombreCompleto().toLowerCase().contains(cliente));
-
+                            f.getCliente().getNumeroDocumento() != null &&
+                            f.getCliente().getNumeroDocumento().toLowerCase().contains(filtroDni));
 
             boolean coincideMetodo = metodo == null || metodo.equals("Todos") ||
                     (f.getMetodoPago() != null && f.getMetodoPago().equalsIgnoreCase(metodo));
 
             boolean coincideEstado = estado == null || f.getEstadoFactura() == estado;
 
-            return coincideCliente && coincideMetodo && coincideEstado;
+            return coincideDni && coincideMetodo && coincideEstado;
         });
     }
 
-    /**
-     * NUEVO: solo se pueden imprimir/exportar a PDF las facturas ya cobradas
-     * (PAGADA). No tiene sentido entregarle al cliente un comprobante de una
-     * factura que todavía no se cobró.
-     */
+
+
+
     private boolean esImprimible(Factura factura) {
         return factura != null && factura.getEstadoFactura() == EstadoFactura.PAGADA;
     }
@@ -218,9 +206,7 @@ public class ListadoFacturasController {
             stage.setTitle("Cobrar factura");
             stage.setScene(new Scene(root));
             stage.initModality(Modality.APPLICATION_MODAL);
-            // Al cerrar el modal (se cobró o se canceló), refrescar la tabla
-            // para reflejar el nuevo estado sin que el usuario tenga que
-            // volver a buscar manualmente.
+
             stage.setOnHidden(e -> refrescarTabla());
             stage.showAndWait();
 
@@ -258,9 +244,7 @@ public class ListadoFacturasController {
             AlertaUtil.mostrarAlerta(Alert.AlertType.INFORMATION, "Factura", null, mensajeOk);
             refrescarTabla();
         } catch (EstadoFacturaInvalidoException e) {
-            // FIX (flujo de estado): transición no permitida (ej: pagar una
-            // factura ya anulada). Antes no existía esta validación y el
-            // UPDATE se ejecutaba igual, dejando datos inconsistentes.
+
             AlertaUtil.mostrarAlerta(Alert.AlertType.WARNING, "Operación no permitida", null, e.getMessage());
         } catch (SQLException e) {
             AlertaUtil.mostrarAlerta(Alert.AlertType.ERROR, "Error", null, mensajeErrorGenerico);

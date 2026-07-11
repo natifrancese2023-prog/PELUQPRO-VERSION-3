@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.StackedBarChart?>
 <?import javafx.scene.chart.CategoryAxis?>
 <?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.chart.PieChart?> <!-- ✅ Importamos el PieChart -->
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
@@ -17,25 +19,33 @@
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="controllers.ReporteFacturacionController"
-            prefWidth="800" prefHeight="600">
+            prefWidth="1050" prefHeight="700"> <!-- Incrementado el tamaño por defecto para comodidad visual -->
 
-    <!-- Panel superior: filtros -->
     <top>
-        <HBox spacing="10" style="-fx-padding: 10;">
-            <Label text="Desde:"/>
-            <DatePicker fx:id="fechaInicio"/>
-            <Label text="Hasta:"/>
-            <DatePicker fx:id="fechaFin"/>
-            <Button fx:id="btnGenerar" text="Generar reporte" onAction="#generarReporte"/>
-            <Button fx:id="btnExportar" text="Exportar gráficos" onAction="#exportarReporte"/>
-        </HBox>
+        <VBox spacing="5">
+            <HBox spacing="10" style="-fx-padding: 10;">
+                <Label text="Desde:"/>
+                <DatePicker fx:id="fechaInicio"/>
+                <Label text="Hasta:"/>
+                <DatePicker fx:id="fechaFin"/>
+                <Button fx:id="btnGenerar" text="Generar reporte" onAction="#generarReporte"/>
+                <Button fx:id="btnExportar" text="Exportar gráficos" onAction="#exportarReporte"/>
+            </HBox>
+            <!-- Panel de Resumen del Período -->
+            <HBox spacing="20" style="-fx-padding: 0 10 10 10; -fx-font-weight: bold;">
+                <Label fx:id="lblTotalPeriodo" text="Total Facturado Período: $0.00" />
+                <Label fx:id="lblTotalFacturas" text="Total Facturas: 0" />
+                <Label fx:id="lblTotalPagadas" text="Total Pagadas: 0" style="-fx-text-fill: green;" />
+            </HBox>
+        </VBox>
     </top>
 
-    <!-- Panel central con scroll horizontal y vertical -->
     <center>
         <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED">
             <VBox spacing="15" style="-fx-padding: 10;" prefWidth="1000">
-                <LineChart fx:id="graficoFacturacion" prefHeight="250" prefWidth="950" title="Facturación por día">
+
+                <!-- 1. Gráfico de Línea ocupando el ancho completo -->
+                <LineChart fx:id="graficoFacturacion" prefHeight="230" prefWidth="980" title="Evolución diaria de facturación ($)">
                     <xAxis>
                         <CategoryAxis label="Fecha"/>
                     </xAxis>
@@ -44,24 +54,35 @@
                     </yAxis>
                 </LineChart>
 
-                <BarChart fx:id="graficoMetodosPago" prefHeight="250" prefWidth="950" title="Métodos de pago más usados">
-                    <xAxis>
-                        <CategoryAxis label="Método de pago"/>
-                    </xAxis>
-                    <yAxis>
-                        <NumberAxis label="Cantidad de facturas"/>
-                    </yAxis>
-                </BarChart>
+                <!-- ✅ 2. Distribución Lado a Lado usando un HBox -->
+                <HBox spacing="15" prefWidth="980">
+                    <children>
+                        <!-- Gráfico Apilado (Evolución diaria por método) -->
+                        <StackedBarChart fx:id="graficoMetodosPago" prefHeight="250" prefWidth="550" title="Cantidad de Facturas por Día (Desglosado por Método)" HBox.hgrow="ALWAYS">
+                            <xAxis>
+                                <CategoryAxis label="Fecha"/>
+                            </xAxis>
+                            <yAxis>
+                                <NumberAxis label="Cantidad de facturas"/>
+                            </yAxis>
+                        </StackedBarChart>
 
-                <TableView fx:id="tablaResumen" prefHeight="200" prefWidth="950">
+                        <!-- Gráfico de Torta (Total acumulado de Efectivo/Débito/etc. en el período) -->
+                        <PieChart fx:id="graficoTortaMetodos" prefHeight="250" prefWidth="410" title="Distribución de Métodos (Total Período)" HBox.hgrow="NEVER" />
+                    </children>
+                </HBox>
+
+                <!-- 3. Tabla de Datos del Resumen -->
+                <TableView fx:id="tablaResumen" prefHeight="180" prefWidth="980">
                     <columns>
-                        <TableColumn fx:id="colFecha" text="Fecha" prefWidth="150"/>
-                        <TableColumn fx:id="colTotal" text="Total facturado" prefWidth="200"/>
-                        <TableColumn fx:id="colMetodos" text="Métodos de pago" prefWidth="600"/>
+                        <TableColumn fx:id="colFecha" text="Fecha" prefWidth="100"/>
+                        <TableColumn fx:id="colTotal" text="Total facturado" prefWidth="120"/>
+                        <TableColumn fx:id="colCantidad" text="Facturas Emitidas" prefWidth="120"/>
+                        <TableColumn fx:id="colPagadas" text="Cantidad Pagadas" prefWidth="120"/>
+                        <TableColumn fx:id="colMetodos" text="Desglose de Métodos (Cant.)" prefWidth="500"/>
                     </columns>
                 </TableView>
             </VBox>
         </ScrollPane>
     </center>
 </BorderPane>
-

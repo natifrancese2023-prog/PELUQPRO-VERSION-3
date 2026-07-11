@@ -18,13 +18,14 @@ public class ClienteDAO {
     private final DocumentoDAO documentoDAO = new DocumentoDAO();
     private final PersonaDAO personaDAO = new PersonaDAO();
     private final RedSocialDAO redSocialDAO = new RedSocialDAO();
+    private static final String INSERT_CLIENTE_SQL =
+            "INSERT INTO cliente (id_persona, fecha_alta, activo) VALUES (?, ?, ?)";
 
-    private static final String INSERT_CLIENTE_SQL = "INSERT INTO cliente (id_persona) VALUES (?)";
 
     private static final String SELECT_CLIENTE_POR_DOCUMENTO_COMPLETO =
             "SELECT c.id_cliente, p.id_persona, p.nombre, p.apellido, p.telefono, p.email, p.calle, p.numero, " +
                     "d.numero_documento, td.tipo_documento, b.nombre_barrio, ciu.nombre_ciudad, pr.nombre_provincia, " +
-                    "c.fecha_alta, c.activo " +   // ✅ agregado
+                    "c.fecha_alta, c.activo " +
                     "FROM cliente c " +
                     "JOIN persona p ON c.id_persona = p.id_persona " +
                     "JOIN documento d ON p.id_documento = d.id_documento " +
@@ -32,7 +33,8 @@ public class ClienteDAO {
                     "JOIN barrio b ON p.id_barrio = b.id_barrio " +
                     "JOIN ciudad ciu ON b.id_ciudad = ciu.id_ciudad " +
                     "JOIN provincia pr ON ciu.id_provincia = pr.id_provincia " +
-                    "WHERE td.tipo_documento = ? AND d.numero_documento = ?";
+                    "WHERE td.tipo_documento = ? AND d.numero_documento = ? AND c.activo = true";
+
 
 
     private static final String SELECT_CLIENTE_POR_ID_COMPLETO =
@@ -46,6 +48,8 @@ public class ClienteDAO {
                     "JOIN ciudad ciu ON b.id_ciudad = ciu.id_ciudad " +
                     "JOIN provincia pr ON ciu.id_provincia = pr.id_provincia " +
                     "WHERE c.id_cliente = ?";
+
+
 
     public boolean insertar(Cliente cliente) throws SQLException {
         Connection conn = null;
@@ -65,14 +69,14 @@ public class ClienteDAO {
             Cliente existente = consultarPorDocumentoCompleto(cliente.getNombreTipoDocumento(), cliente.getNumeroDocumento());
             if (existente != null) {
                 if (!existente.isActivo()) {
-                    // No reactivar acá, solo avisar
                     conn.rollback();
-                    return false; // El Service lo interpreta como DUPLICADO_INACTIVO
+                    return false; // DUPLICADO_INACTIVO
                 } else {
                     conn.rollback();
                     throw new SQLException("Error: Ya existe un cliente activo con ese documento.");
                 }
             }
+
             // PASO 1: Insertar Documento
             int idDocumento = documentoDAO.insertar(conn, cliente.getNumeroDocumento(), idTipoDocumento);
             if (idDocumento == -1) { conn.rollback(); return false; }
@@ -81,10 +85,12 @@ public class ClienteDAO {
             int idPersona = personaDAO.insertar(conn, cliente, idDocumento, idBarrio);
             if (idPersona == -1) { conn.rollback(); return false; }
 
-            // PASO 3: Insertar Cliente
+            // PASO 3: Insertar Cliente con fecha de alta y estado activo
             int idCliente = -1;
             try (PreparedStatement psCli = conn.prepareStatement(INSERT_CLIENTE_SQL, Statement.RETURN_GENERATED_KEYS)) {
                 psCli.setInt(1, idPersona);
+                psCli.setTimestamp(2, new java.sql.Timestamp(System.currentTimeMillis())); // ✅ fecha automática
+                psCli.setBoolean(3, true); // ✅ activo por defecto
                 if (psCli.executeUpdate() > 0) {
                     try (ResultSet rs = psCli.getGeneratedKeys()) {
                         if (rs.next()) idCliente = rs.getInt(1);
@@ -120,6 +126,7 @@ public class ClienteDAO {
             try { if (conn != null) conn.close(); } catch (SQLException e) { e.printStackTrace(); }
         }
     }
+
 
     public Cliente obtenerPorId(int idCliente) throws SQLException {
         Cliente cliente = null;

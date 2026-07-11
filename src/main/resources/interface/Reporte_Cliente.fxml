@@ -3,6 +3,7 @@
 <?import javafx.scene.chart.BarChart?>
 <?import javafx.scene.chart.CategoryAxis?>
 <?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.chart.PieChart?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
@@ -11,7 +12,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Button?>
-
+<?import javafx.scene.control.ScrollPane?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
@@ -23,31 +24,49 @@
             <ComboBox fx:id="cbFiltro" prefWidth="200"/>
         </HBox>
     </top>
-
     <center>
-        <VBox spacing="10" style="-fx-padding: 10;">
-            <TableView fx:id="tablaClientes" prefHeight="300">
-                <columns>
-                    <TableColumn fx:id="colNombre" text="Nombre completo" prefWidth="150"/>
-                    <TableColumn fx:id="colTelefono" text="Teléfono" prefWidth="100"/>
-                    <TableColumn fx:id="colEmail" text="Email" prefWidth="150"/>
-                    <TableColumn fx:id="colVisitas" text="Visitas" prefWidth="80"/>
-                    <TableColumn fx:id="colGasto" text="Gasto total" prefWidth="100"/>
-                    <TableColumn fx:id="colEstadoTurno" text="Estado último turno" prefWidth="150"/>
-                </columns>
-            </TableView>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;">
+            <content>
+                <VBox spacing="20" style="-fx-padding: 15;">
 
-            <BarChart fx:id="graficoClientes" prefHeight="300" prefWidth="600">
-                <xAxis>
-                    <CategoryAxis label="Cliente"/>
-                </xAxis>
-                <yAxis>
-                    <NumberAxis label="Gasto total"/>
-                </yAxis>
-            </BarChart>
+                    <TableView fx:id="tablaClientes" prefHeight="250" minHeight="200">
+                        <columns>
+                            <TableColumn fx:id="colNombre" text="Nombre completo" prefWidth="150"/>
+                            <TableColumn fx:id="colTelefono" text="Teléfono" prefWidth="100"/>
+                            <TableColumn fx:id="colEmail" text="Email" prefWidth="150"/>
+                            <TableColumn fx:id="colVisitas" text="Visitas" prefWidth="80"/>
+                            <TableColumn fx:id="colGasto" text="Gasto total" prefWidth="100"/>
+                            <TableColumn fx:id="colEstadoTurno" text="Estado último turno" prefWidth="150"/>
+                        </columns>
+                    </TableView>
 
-            <Button text="Exportar a PDF" onAction="#exportarPDF"/>
-            <Button text="Exportar a Excel" onAction="#exportarExcel"/>
-        </VBox>
+                    <BarChart fx:id="graficoBarras" prefHeight="300" minHeight="250" prefWidth="600">
+                        <xAxis>
+                            <CategoryAxis label="Cliente"/>
+                        </xAxis>
+                        <yAxis>
+                            <NumberAxis label="Gasto total"/>
+                        </yAxis>
+                    </BarChart>
+
+                    <PieChart fx:id="graficoTorta" prefHeight="300" minHeight="250" prefWidth="600"/>
+
+                    <BarChart fx:id="graficoHistograma" prefHeight="300" minHeight="250" prefWidth="600">
+                        <xAxis>
+                            <CategoryAxis label="Cliente"/>
+                        </xAxis>
+                        <yAxis>
+                            <NumberAxis label="Visitas"/>
+                        </yAxis>
+                    </BarChart>
+
+                    <HBox spacing="10" style="-fx-padding: 10 0 0 0;">
+                        <Button text="Exportar a PDF" onAction="#exportarPDF"/>
+                        <Button text="Exportar a Excel" onAction="#exportarExcel"/>
+                    </HBox>
+
+                </VBox>
+            </content>
+        </ScrollPane>
     </center>
 </BorderPane>

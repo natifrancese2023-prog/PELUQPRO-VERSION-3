@@ -71,6 +71,7 @@ public class LoginController {
             Stage stage = new Stage();
             stage.setTitle("PeluqPro - Panel Principal");
             stage.setScene(new Scene(root));
+            stage.setMaximized(true);
             stage.show();
 
         } catch (IOException e) {
